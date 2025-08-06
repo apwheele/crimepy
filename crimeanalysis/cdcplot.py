@@ -9,6 +9,7 @@ from matplotlib.pyplot import imread
 from cycler import cycler
 import numpy as np
 import importlib_resources
+from matplotlib import font_manager
 
 # colors via Van Gogh
 colors = {"cdblue": "#286090",
@@ -23,21 +24,21 @@ colors = {"cdblue": "#286090",
 andy_cycler = cycler(color=list(colors.values()))
 
 #######################################
-# seeing available fonts
+# seeing if Verdana is available and using that
+# else it just goes to the backup
 
-#from matplotlib import font_manager
-#fl = font_manager.findSystemFonts(fontpaths=None, fontext="ttf")
-#
-#otf = [f for f in fl if f[-3:] == 'otf']
-#
-#font_manager.findfont("KpSans")
-#font_manager.get_font(otf[-1])
-#font_manager.findfont("KpSans")
+fl = font_manager.findSystemFonts(fontpaths=None, fontext="ttf")
+verdana_name = matplotlib.rcParams['font.sans-serif'][0]
+for f in fl:
+    if 'VERDANA.TTF' in f.upper():
+        vl = f
+        verdana_font = font_manager.FontProperties(fname=vl)
+        verdana_name = verdana_font.get_name()
 
 #######################################
 
 
-andy_theme = {'font.sans-serif': 'Verdana',
+andy_theme = {'font.sans-serif': [verdana_name],
               'font.family': 'sans-serif',
               'axes.grid': True,
               'axes.axisbelow': True,
@@ -59,7 +60,7 @@ andy_theme = {'font.sans-serif': 'Verdana',
 
 matplotlib.rcParams.update(andy_theme)
 
-im = image_path = importlib_resources.files('crimeanalysis').joinpath('CDCWLineRec.PNG')
+im = imread(importlib_resources.files('crimeanalysis').joinpath('CDCWLineRec.PNG'))
 #im = imread('D:\GoogleDrive\Logos\WLineRec.PNG')
 
 def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
@@ -93,7 +94,7 @@ def combo_legend(ax):
 
 
 # check colors
-def check_colors():
+def check_colors(logo=False,show=False):
     lc = len(colors)
     x = range(lc)
     y = [1]*lc
@@ -104,7 +105,12 @@ def check_colors():
        t = ax.text(0.5,-a,next(cy)['color'],horizontalalignment='center',
                verticalalignment='center')
     ax.set_axis_off()
-    fig.show()
+    if logo:
+        add_logo(ax)
+    if show:
+        fig.show()
+    else:
+        return ax
 
 
 # Brownian motion
@@ -118,7 +124,7 @@ def traj(n):
     return res
 
 
-def check_line(n=20,**kwargs):
+def check_line(n=20,show=False,**kwargs):
     lc = len(colors)
     x = range(n)
     cy = andy_cycler()
@@ -128,4 +134,7 @@ def check_line(n=20,**kwargs):
        l = ax.plot(x,t,'-',markeredgecolor='white',label=next(cy)['color'],**kwargs)
     #ax.legend(bbox_to_anchor=(1.0, 0.8))
     ax.set_axis_off()
-    fig.show()
+    if show:
+        fig.show()
+    else:
+        return ax
