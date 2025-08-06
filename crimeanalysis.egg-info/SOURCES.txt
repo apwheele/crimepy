@@ -1,0 +1,15 @@
+LICENSE
+README.md
+setup.py
+crimeanalysis/__init__.py
+crimeanalysis/aoristic.py
+crimeanalysis/cdcplot.py
+crimeanalysis/dallasdata.csv.zip
+crimeanalysis/data.py
+crimeanalysis/geo.py
+crimeanalysis/query.py
+crimeanalysis.egg-info/PKG-INFO
+crimeanalysis.egg-info/SOURCES.txt
+crimeanalysis.egg-info/dependency_links.txt
+crimeanalysis.egg-info/requires.txt
+crimeanalysis.egg-info/top_level.txt

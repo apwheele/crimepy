@@ -1,0 +1,8 @@
+matplotlib
+pandas
+scikit-learn
+geopandas
+folium
+requests
+jupyter
+importlib_resources

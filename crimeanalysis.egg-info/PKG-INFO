@@ -1,0 +1,54 @@
+Metadata-Version: 2.4
+Name: crimeanalysis
+Version: 0.0.1
+Summary: A small crime analysis package
+Home-page: https://github.com/pypa/sampleproject
+Author: Example Author
+Author-email: author@example.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: matplotlib
+Requires-Dist: pandas
+Requires-Dist: scikit-learn
+Requires-Dist: geopandas
+Requires-Dist: folium
+Requires-Dist: requests
+Requires-Dist: jupyter
+Requires-Dist: importlib_resources
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# crimeanalysis
+
+A python package to help conduct different various types of crime analysis
+
+Link to Crime De-Coder
+
+## Installation
+
+To install this package from GitHub, you can use pip:
+
+```bash
+pip install git+https://github.com/pypa/sampleproject.git
+```
+
+# ToDo
+
+ - Package setup
+ - SPPT test
+ - WDD tests
+ - matplotlib functions
+ - folium helpers
+ - DBScan hotspots
