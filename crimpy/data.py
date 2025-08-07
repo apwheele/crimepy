@@ -39,7 +39,7 @@ def load_dallas_data():
     Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
     """
     # Use importlib_resources to access the data file packaged with the library
-    data_path = importlib_resources.files('crimeanalysis').joinpath('dallasdata.csv.zip')
+    data_path = importlib_resources.files('crimpy').joinpath('dallasdata.csv.zip')
     
     # read the zipped csv file
     with data_path.open('rb') as f:

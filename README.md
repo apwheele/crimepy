@@ -1,29 +1,40 @@
-# crimeanalysis
+# crimpy -- a python package for crime analysis
 
 A python package to help conduct different various types of crime analysis
 
-Link to Crime De-Coder
+Andrew Wheeler
+[Crime De-Coder LLC](https://crimede-coder.com/)
 
 ## Installation
 
 To install this package from GitHub, you can use pip:
 
 ```bash
-pip install git+https://github.com/pypa/sampleproject.git
+pip install git+https://github.com/apwheele/crimpy.git
 ```
 
 For now, I would suggest installing editable, since it is in a very early stage. E.g.
 
 ```bash
-git clone ...
-cd ./crimeanalysis
+git clone https://github.com/apwheele/crimpy.git
+cd ./crimpy
 pip install -e .
 ```
+
+## Examples
+
+See the notebooks folder for example analyses:
+
+ - [Aoristic analysis](./notebooks/AoristicAnalysis.ipynb)
+
+
 
 # ToDo
 
  - SPPT
  - WDD
+ - e-test
+ - small sample test
  - folium helpers
  - DBScan hotspots
  - Patrol district
