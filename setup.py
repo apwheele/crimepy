@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="crimpy",
+    name="crimepy",
     version="0.0.1",
     author="Andrew Wheeler",
     author_email="andrew.wheeler@crimede-coder.com",
     description="Crime analysis in python",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/apwheele/crimpy",
+    url="https://github.com/apwheele/crimepy",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -33,6 +33,6 @@ setuptools.setup(
         'pytest',
     ],
     package_data={
-        'crimpy': ['*.png', '*.csv.zip'],
+        'crimepy': ['*.png', '*.csv.zip'],
     },
 )

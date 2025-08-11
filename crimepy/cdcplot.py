@@ -59,9 +59,7 @@ andy_theme = {'font.sans-serif': [verdana_name],
 
 
 matplotlib.rcParams.update(andy_theme)
-
-im = imread(importlib_resources.files('crimpy').joinpath('CDCWLineRec.PNG'))
-#im = imread('D:\GoogleDrive\Logos\WLineRec.PNG')
+im = imread(importlib_resources.files('crimepy').joinpath('CDCWLineRec.PNG'))
 
 def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     if loc is None:
