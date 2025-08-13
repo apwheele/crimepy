@@ -11,8 +11,6 @@ import pandas as pd
 import requests
 from urllib.parse import quote, urljoin
 import os
-import urllib3
-import ssl
 import time
 import traceback
 import re

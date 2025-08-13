@@ -28,6 +28,15 @@ setuptools.setup(
         'requests',
         'jupyter',
         'importlib_resources',
+        'geopandas',
+        'shapely',
+        'matplotlib-scalebar',
+        'matplotlib-map-utils',
+        'osmnx',
+        'beautifulsoup4',
+        'folium',
+        'networkx',
+        'contextily'
     ],
     tests_require=[
         'pytest',

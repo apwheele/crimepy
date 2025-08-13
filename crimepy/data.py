@@ -1,5 +1,10 @@
 import pandas as pd
 import importlib_resources
+from .geo import convgpd
+import geopandas as gpd
+import networkx as nx
+
+dallas_prj = 'EPSG:2276'
 
 dallas_nibr_num = {'LARCENY/ THEFT OFFENSES': 0, 
             'MOTOR VEHICLE THEFT': 1, 
@@ -49,4 +54,36 @@ def load_dallas_data():
     df['end'] = pd.to_datetime(df['end'])
     df['NIBR_DESC'] = df['nibrs_cat'].replace(rev_dallas_nibrs)
     df['LOC_DESC'] = df['location'].replace(dallas_loc_label)
-    return df
+    df = convgpd(df,xy=['lon','lat'])
+    return df.to_crs(dallas_prj)
+
+
+def load_dallas_border():
+    data_path = importlib_resources.files('crimepy').joinpath('Dallas_MainArea_Proj.zip')
+    
+    # read the zipped csv file
+    with data_path.open('rb') as f:
+        dall_outline = gpd.read_file(f)
+    return dall_outline
+
+
+def load_network_data():
+    """
+    Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
+    """
+    # Use importlib_resources to access the data file packaged with the library
+    edges_path = importlib_resources.files('crimepy').joinpath('Edges_Gang1.csv')
+    nodes_path = importlib_resources.files('crimepy').joinpath('Nodes_Gang1.csv')
+    
+    # read the csv files
+    with edges_path.open('rb') as f:
+        edges = pd.read_csv(f)
+    
+    with nodes_path.open('rb') as f:
+        nodes = pd.read_csv(f)
+   
+    G = nx.Graph()
+    lv = list(nodes.set_index('Id').to_dict(orient='index').items())
+    G.add_nodes_from(lv)
+    G.add_edges_from(edges.values)
+    return G, nodes, edges

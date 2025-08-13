@@ -19,27 +19,28 @@ For now, I would suggest installing editable, since it is in a very early stage.
 
 ```bash
 git clone https://github.com/apwheele/crimepy.git
-cd ./crimpy
+cd ./crimepy
 pip install -e .
 ```
+
+And then just periodically do a `git pull` to get the most recent version.
 
 ## Examples
 
 See the notebooks folder for example analyses:
 
  - [Aoristic analysis](./notebooks/AoristicAnalysis.ipynb)
-
-
+ - [DBScan hotspots](./notebooks/DBScanHotspots.ipynb)
+ - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
 
 # ToDo
 
+ - Funnel charts
+ - Example Folium helpers
  - SPPT
  - WDD
  - e-test
- - small sample test
- - folium helpers
- - DBScan hotspots
+ - time series charts
  - Patrol district
- - network functions
  - tests
  - github actions

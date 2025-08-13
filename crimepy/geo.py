@@ -7,7 +7,11 @@ from datetime import datetime
 import pyproj
 import contextily as cx
 import matplotlib
+import matplotlib.patches as patches
+from matplotlib.path import Path
 import matplotlib.pyplot as plt
+from matplotlib.colors import colorConverter
+from matplotlib.legend_handler import HandlerBase
 from matplotlib_scalebar.scalebar import ScaleBar
 import pandas as pd
 import geopandas as gpd
@@ -21,6 +25,8 @@ from pylab import cm
 from folium.plugins import MarkerCluster
 import numpy as np
 from shapely.geometry import Polygon
+from shapely.geometry import Point
+from shapely.ops import unary_union
 import re
 
 # For the folium maps
@@ -179,6 +185,8 @@ def count_points(poly,points,var_name):
 # raster KDE map
 # nearby points
 
+# I do not like this at all! Most maps IMO do not need 
+# a north arrow unless they are oriented in a way north is not north
 #Add north arrow, https://stackoverflow.com/a/58110049/604456
 def north_arrow(ax,
                 aspecs=[0.85,0.10,0.07],
@@ -192,7 +200,7 @@ def north_arrow(ax,
                 xycoords=ax.transAxes)
 
 # Functions to create a basemap, cx.providers.CartoDB.Voyager
-outline_kwargs = {'color':'k',
+outline_kwargs = {'fill':'k',
                   'linewidth':3,
                   'figsize': (10,10),
                   'label': 'City Boundary',
@@ -205,43 +213,161 @@ scalebar_kwargs = {'dx': 1,
 
 narrow_kwargs = {'fontsize': 20}
 
-
-def basemap(outline,features=[],feature_kwargs=[],outline_kwargs=outline_kwargs,
-            scalebar_kwargs=scalebar_kwargs,
-            arrow_kwargs=narrow_kwargs,
-            zoom=12,basemap=cx.providers.CartoDB.Positron,
-            file=None,dpi=500):
-    # if you don't want outline
-    # can make invisible, but still need the area
-    # set for the plot!
-    ax = outline.boundary.plot(**outline_kwargs)
-    ax.get_xaxis().set_ticks([])
-    ax.get_yaxis().set_ticks([])
-    #Add north arrow
-    if arrow_kwargs:
-        north_arrow(ax,**arrow_kwargs)
-    #Add scale-bar
-    if scalebar_kwargs:
-        scalebar = ScaleBar(**scalebar_kwargs)
-        ax.add_artist(scalebar)
-    # Adding in contextily basemap
-    if basemap:
-        cx.add_basemap(ax, crs=outline.crs.to_string(), source=basemap, zoom=zoom)
-    # Adding in features
-    for fe,fk in zip(features,feature_kwargs):
-        fe.plot(ax=ax,**fk)
-    # Fixing the legend
-    # Saving or returning the plot
-    if file is None:
-        plt.show()
-    elif file == 'return':
-        return ax
+# Legend helpers for static map
+# Convert shapely geometry to matplotlib path
+def shapely_to_path(geom):
+    """Convert a Shapely geometry to a matplotlib Path"""
+    if geom.geom_type == 'Polygon':
+        # Handle simple polygon
+        coords = np.array(geom.exterior.coords)
+        codes = [Path.MOVETO] + [Path.LINETO] * (len(coords) - 2) + [Path.CLOSEPOLY]
+        return Path(coords, codes)
+    elif geom.geom_type == 'MultiPolygon':
+        # Handle multiple polygons by creating compound path
+        paths = []
+        for polygon in geom.geoms:
+            coords = np.array(polygon.exterior.coords)
+            codes = [Path.MOVETO] + [Path.LINETO] * (len(coords) - 2) + [Path.CLOSEPOLY]
+            paths.append(Path(coords, codes))
+        return Path.make_compound_path(*paths)
     else:
-        plt.savefig(file,dpi=dpi) #bbox_inches='tight'
-        plt.clf()
+        raise ValueError(f"Unsupported geometry type: {geom.geom_type}")
 
 
-# SVG helpers for legends
+# Just copy/paste from SVG
+def create_shapely_union(width,height,xdescent,ydescent):
+    scale_x = width/20
+    scale_y = height/20
+    c1x, c1y, r1 = 6.5 * scale_x, 7 * scale_y, 5 * scale_x
+    c2x, c2y, r2 = 14 * scale_x, 7 * scale_y, 5 * scale_x  
+    c3x, c3y, r3 = 12 * scale_x, 12 * scale_y, 5 * scale_x
+    # Adjust for legend positioning
+    c1x += xdescent
+    c1y += ydescent
+    c2x += xdescent
+    c2y += ydescent
+    c3x += xdescent
+    c3y += ydescent
+    # Create shapely circles (using buffer on points)
+    circle1 = Point((c1x, c1y)).buffer(r1)
+    circle2 = Point((c2x, c2y)).buffer(r2)
+    circle3 = Point((c3x, c3y)).buffer(r3)
+    # Compute the union
+    union_shape = unary_union([circle1, circle2, circle3])
+    return union_shape
+
+
+# Handler for Hotspot
+class HotSpotHandler(HandlerBase):
+    def __init__(self,fill="#880808",fill_alpha=0.5,edge="#8B0000",edge_alpha=1,
+                 edge_width=1):
+        super().__init__()
+        self.fill = fill
+        self.fill_alpha = fill_alpha
+        self.edge = edge
+        self.edge_alpha = edge_alpha
+        self.stroke_color = edge
+        self.stroke_width = edge_width
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, 
+                      width, height, fontsize, trans):
+        circle_path = shapely_to_path(create_shapely_union(width,height,xdescent,ydescent))
+        # Creating two artists, one for the background and the other for the fill
+        interior = patches.PathPatch(circle_path,facecolor=self.fill, 
+                                    alpha=self.fill_alpha,
+                                    edgecolor='none',
+                                    linewidth=0,
+                                    transform=trans)
+        exterior = patches.PathPatch(circle_path,facecolor='none', 
+                                    alpha=self.edge_alpha,
+                                    edgecolor=self.edge,
+                                    linewidth=self.stroke_width,
+                                    transform=trans)
+        artists = [interior,exterior]
+        return artists
+
+# Handler for geographic area
+class GeoAreaHandler(HandlerBase):
+    def __init__(self, fill='grey', fill_alpha=1.0, edge='black', edge_alpha=1.0,
+                 edge_width=1, scale_factor=2.0, 
+                 x_scale_factor=0.5, y_scale_factor=1.0,xshift=1.5,yshift=-3.5):
+        super().__init__()
+        self.fill = fill
+        self.fill_alpha = fill_alpha
+        self.edge = edge
+        self.edge_alpha = edge_alpha
+        self.stroke_width = edge_width
+        self.scale_factor = scale_factor
+        self.x_scale_factor = x_scale_factor
+        self.y_scale_factor = y_scale_factor
+        self.xshift = xshift
+        self.yshift = yshift
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, 
+                      width, height, fontsize, trans):
+        x_pts = [3,17,17,10,3]
+        y_pts = [3,3 ,10,17,17]
+        max_y = 20  # or max(y_pts) + min(y_pts) if you want to be more general
+        y_pts_flipped = [max_y - i for i in y_pts]
+        x_pts = [(i/20)*width*self.x_scale_factor*self.scale_factor + xdescent+self.xshift for i in x_pts]
+        y_pts = [(i/20)*height*self.y_scale_factor*self.scale_factor + ydescent+self.yshift for i in y_pts_flipped]
+        interior = patches.Polygon(list(zip(x_pts, y_pts)), closed=True,
+                                    facecolor=self.fill, 
+                                    alpha=self.fill_alpha,
+                                    edgecolor='none',
+                                    linewidth=0,
+                                    transform=trans)
+        exterior = patches.Polygon(list(zip(x_pts, y_pts)), closed=True,
+                                    facecolor='none', 
+                                    alpha=self.edge_alpha,
+                                    edgecolor=self.edge,
+                                    linewidth=self.stroke_width,
+                                    transform=trans)
+        artists = [interior,exterior]
+        return artists
+
+class HotSpotLegendItem:
+    def __init__(self, label="HotSpot"):
+        self.label = label
+
+class GeoAreaLegendItem:
+    def __init__(self, label="Boundary"):
+        self.label = label
+
+# simpler to remember this
+colalpha = colorConverter.to_rgba
+
+# Should also do one for lines, circles, or other point glyphs
+handle_di = {'GeoArea': (GeoAreaLegendItem,GeoAreaHandler),
+             'HotSpot': (HotSpotLegendItem,HotSpotHandler)
+             }
+
+def map_legend(types,styles):
+    art = []
+    han_map = {}
+    for t,s in zip(types,styles):
+        hi, ho = handle_di[t]
+        art.append(hi)
+        han_map[hi] = ho(**s)
+    return art, han_map
+
+
+# helper for geopandas plot, I do this to handle alpha
+# transparency separately for interior/exterior
+
+def geo_map(area,ax,fill,edge='k',fill_alpha=1,edge_alpha=1,edge_width=1,leg_type='GeoArea',**kwargs):
+    area.plot(ax=ax,color=colalpha(fill,fill_alpha),
+              edgecolor=colalpha(edge,edge_alpha),
+              linewidth=edge_width)
+    hi, ho = handle_di[leg_type]
+    # doing the new class makes it locally scoped
+    # so I am not overwriting others
+    class LocalItemClass:
+        def __init__(self, label="Boundary"):
+            self.label = label
+    han = ho(fill=fill,edge=edge,fill_alpha=fill_alpha,edge_alpha=edge_alpha,edge_width=edge_width,**kwargs)
+    hi = LocalItemClass()
+    return hi, han
+
+# SVG helpers for folium legends
 
 # This is for a polygon area (such as a city boundary, or a choropleth map)
 def poly_svg(text="Polygon",fill="grey",fill_opacity=0.5,stroke="black",stroke_width=1,stroke_opacity=1,height=20,width=20):
@@ -840,6 +966,8 @@ def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=
             rl.append(ss)
     rlc = '\n'.join(rl)
     #mapf.save(file)
+    if file is None:
+        return rlc
     if os.path.exists(file):
         os.remove(file)
     with open(file, "w") as f:
