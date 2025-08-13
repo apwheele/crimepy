@@ -36,7 +36,8 @@ setuptools.setup(
         'beautifulsoup4',
         'folium',
         'networkx',
-        'contextily'
+        'contextily',
+        'ipycytoscape'
     ],
     tests_require=[
         'pytest',

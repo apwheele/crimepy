@@ -8,6 +8,7 @@ for peer review references and web-app
 
 import networkx as nx
 import itertools
+import ipycytoscape
 
 # Function to turn dataframe into how you want it formatted
 # for adding nodes
@@ -135,3 +136,78 @@ def domSet_Whe2(G):
         #now update the neighSet to include newnodes, pruning edges not necessary
         neighSet = neigh_cur | neighSet
     return domSet
+
+
+call_in_style = [
+   {
+        'selector': 'node',
+        'style': {
+            'label': 'data(label)',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'font-size': '10px',
+            'width': '30px',
+            'height': '30px',
+            'border-width': '2px',
+            'border-color': 'black'
+        }
+    },
+    {
+        'selector': 'edge',
+        'style': {
+            'width': 2,
+            'line-color': '#9CA8B3'
+        }
+    },
+    {
+        'selector': 'node[category="called-in"]',
+        'style': {
+            'shape': 'square',
+            'background-color': 'red',
+            'width': '40px',
+            'height': '40px'
+        }
+    },
+    {
+        'selector': 'node[category="reached"]',
+        'style': {
+            'shape': 'square',
+            'background-color': 'pink',
+            'width': '35px',
+            'height': '35px',
+        }
+    },
+    {
+        'selector': 'node[category="leftover"]',
+        'style': {
+            'background-color': 'lightblue',
+            'width': '20px',
+            'height': '20px',
+        }
+    }
+]
+
+
+# This is for ipycytoscape
+def color_cytoscape(G,called_in,styles=call_in_style,layout='cose'):
+    # Figure out the reached
+    reached = []
+    for c in called_in:
+        reached += list(G[c].keys())
+    reached = list(set(reached) - set(called_in))
+    leftover = set(G.nodes) - set(reached) - set(called_in)
+    # remake a new graph
+    G2 = G.copy()
+    # set attributes for those in each list
+    for n in G2.nodes():
+        if n in called_in:
+            G2.nodes[n]['category'] = 'called-in'
+        elif n in reached:
+            G2.nodes[n]['category'] = 'reached'
+        elif n in leftover:
+            G2.nodes[n]['category'] = 'leftover'
+    cytoscape_widget = ipycytoscape.CytoscapeWidget()
+    cytoscape_widget.graph.add_graph_from_networkx(G2)
+    cytoscape_widget.set_style(call_in_style)
+    cytoscape_widget.set_layout(name=layout)
+    return cytoscape_widget
