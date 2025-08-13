@@ -81,13 +81,17 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
 
 
 # combining legend
-def combo_legend(ax):
+def combo_legend(ax,sort=False):
     handler, labeler = ax.get_legend_handles_labels()
     hd = []
     labli = list(set(labeler))
     for lab in labli:
         comb = [h for h,l in zip(handler,labeler) if l == lab]
         hd.append(tuple(comb))
+    # resorting if you want that
+    if sort:
+        sorted_pairs = sorted(zip(labli,hd))
+        labli, hd = zip(*sorted_pairs)
     return hd, labli
 
 

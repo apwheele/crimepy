@@ -557,7 +557,74 @@ def add_hotspots(mapf,
         geo_fol.add_to(fg)
     fg.add_to(mapf)
 
-# <g transform="translate(-14,-26)"> ... </g>
+# Adding polylines
+def line_svg(text="Line",stroke="black",stroke_width=2,stroke_opacity=1,side=26):
+    svg = "<span>\n"
+    svg += f'<svg width="{side}" height="{side}" xmlns="http://www.w3.org/2000/svg">\n'
+    svg += f'<line x1="0" y1="{side/2 - 1}" x2="{side}" y2="{side/2 - 1}"'
+    svg += f'stroke={stroke} stroke-width={stroke_width} stroke-opacity={stroke_opacity} />'
+    svg += f"</svg>  {text}</span>"
+    svg = svg.replace('.0',"")
+    return svg
+
+def add_lines(mapf,
+              line_df,
+              html_field = None,
+              tooltip_field = None,
+              name="Lines",
+              edge="#8B0000",
+              opacity=0.5,
+              svg_func=line_svg,
+              show=True,
+               popup_width=100,
+               popup_height=100,
+               width=2,
+               highlight_width=5):
+    poly2 = line_df.to_crs('EPSG:4326')
+    #poly2['length'] = line_df.geometry.length
+    # I do this so smaller geometries are placed on the top
+    #poly2 = poly2.sort_values(by='length',ascending=False).reset_index(drop=True)
+    #svg_name = f'''<span><svg width="12" height="12">
+    #            <rect width="12" height="12" fill-opacity="{opacity}" fill="{fill}"
+    #             style="stroke-width:4;stroke:{edge}" />
+    #             </svg> {name}</span>
+    #'''
+    svg_name = svg_func(text=name,stroke=edge,stroke_width=2,stroke_opacity=1)
+    fg = folium.FeatureGroup(name=svg_name,overlay=True,control=True,show=show)
+    def style_func(x):
+        di = {"color": edge,
+              "opacity": opacity,
+              "weight": width}
+        return di
+    def high_func(x):
+        di = {"color": edge,
+              "weight": highlight_width}
+        return di
+    for i in range(poly2.shape[0]):
+        d = poly2.iloc[i].T.to_dict()
+        sub_data = poly2.loc[[i]].copy()
+        geo_js = round_geo(sub_data.geometry)
+        if html_field:
+            html = d[html_field]
+            iframe = folium.IFrame(html=html,width=popup_width,height=popup_height)
+            popup = folium.Popup(iframe,max_width=1000)
+        else:
+            popup = None
+        if tooltip_field:
+            thtml = d[tooltip_field]
+            tooltip = folium.map.Tooltip(thtml)
+        else:
+            tooltip = None
+        geo_fol = folium.GeoJson(data=geo_js,
+                                 style_function=style_func,
+                                 highlight_function=high_func,
+                                 tooltip = tooltip,
+                                 popup = popup,
+                                 name=svg_name,
+                                 overlay=True,
+                                 control=True)
+        geo_fol.add_to(fg)
+    fg.add_to(mapf)
 
 # SVG via https://www.svgrepo.com/svg/302636/map-marker
 # making as tiny as possible
@@ -966,8 +1033,6 @@ def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=
             rl.append(ss)
     rlc = '\n'.join(rl)
     #mapf.save(file)
-    if file is None:
-        return rlc
     if os.path.exists(file):
         os.remove(file)
     with open(file, "w") as f:

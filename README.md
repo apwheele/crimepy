@@ -32,6 +32,7 @@ See the notebooks folder for example analyses:
  - [Aoristic analysis](./notebooks/AoristicAnalysis.ipynb)
  - [DBScan hotspots](./notebooks/DBScanHotspots.ipynb)
  - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
+ - [Time Series Charts](./notebooks/TimeSeriescharts.ipynb)
 
 # ToDo
 
@@ -40,7 +41,6 @@ See the notebooks folder for example analyses:
  - SPPT
  - WDD
  - e-test
- - time series charts
  - Patrol district
  - tests
  - github actions
