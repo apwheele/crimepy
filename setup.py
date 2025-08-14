@@ -37,7 +37,10 @@ setuptools.setup(
         'folium',
         'networkx',
         'contextily',
-        'ipycytoscape'
+        'ipycytoscape',
+        'pulp',
+        'highspy',
+        'libpysal'
     ],
     tests_require=[
         'pytest',

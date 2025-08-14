@@ -16,17 +16,17 @@ import traceback
 import re
 
 # This grabs CSV file from web apps
-def get_csv(url):
-    res_csv = requests.get(url,verify=False)
+def get_csv(url,verify=True):
+    res_csv = requests.get(url,verify=verify)
     res_pd = pd.read_csv(StringIO(res_csv.text),low_memory=False)
     return res_pd
 
 # Reads a dataframe from local or CSV
-def read_data(file):
+def read_data(file,verify=True):
     fe = os.path.splitext(file)[-1]
     if file[:4] == 'http':
         if fe == '.csv':
-            res = get_csv(url)
+            res = get_csv(url,verify)
         elif (fe == '.xlsx') | (fe == '.xls') | (fe == '.xlsb'):
             res = pd.read_excel(file)
     else:
@@ -50,22 +50,22 @@ def read_data(file):
 
 
 # caches file locally if downloaded from URL
-def cache(url,file,exist_only=False):
+def cache(url,file,exist_only=False,verify=True):
     res = None
     if os.path.exists(file):
-        res = read_data(file)
+        res = read_data(file,verify)
     else:
         if exist_only:
             return res
-        res = read_data(url)
+        res = read_data(url,verify)
         res.to_csv(file,index=False)
     return res
 
 
-def cache_query(file, func, query_kwargs,exist_only=False):
+def cache_query(file, func, query_kwargs,exist_only=False,verify=True):
     res = None
     if os.path.exists(file):
-        res = read_data(file)
+        res = read_data(file,verify)
     else:
         if exist_only:
             return res
@@ -86,8 +86,8 @@ def over_modified(file,text):
     with open(file,"w") as f:
         f.write(text)
 
-def get_files(url,extensions):
-    res = requests.get(url,verify=False)
+def get_files(url,extensions,verify=True):
+    res = requests.get(url,verify=verify)
     soup = bs(res.text,'lxml')
     href = soup.find_all("a")
     url_links = []
@@ -111,7 +111,8 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
                params={'outFields':"*",'where':"1=1"},
                verbose=False,
                limitSize=None,
-               gpd_query=False):
+               gpd_query=False,
+               verify=True):
     if verbose:
         print(f'Starting Queries @ {datetime.now()}')
     req = requests
@@ -132,7 +133,7 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
     count_url = fin_url + "&returnCountOnly=true"
     if verbose:
         print(count_url)
-    response_count = req.get(count_url)
+    response_count = requests.get(count_url,verify=verify)
     # If error, try using json instead of geojson
     if 'error' in response_count.json():
         if verbose:
@@ -140,7 +141,7 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
         p2['f'] = 'json'
         fin_url = fin_url.replace('geojson','json')
         count_url = fin_url + "&returnCountOnly=true"
-        response_count2 = req.get(count_url)
+        response_count2 = requests.get(count_url,verify=verify)
         count_n = response_count2.json()['count']
     else:
         try:
@@ -161,7 +162,7 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
         full_response = gpd.read_file(fin_url_limit)
         dat = full_response
     else:
-        full_response = req.get(fin_url_limit)
+        full_response = requests.get(fin_url_limit,verify=verify)
         dat = gpd.read_file(StringIO(full_response.text))
     # If too big, getting subsequent chunks
     chunk = dat.shape[0]
@@ -183,7 +184,7 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
                 part_response = gpd.read_file(off_url)
                 dat_li.append(part_response.copy())
             else:
-                part_response = req.get(off_url)
+                part_response = requests.get(off_url,verify=verify)
                 dat_li.append(gpd.read_file(StringIO(part_response.text)))
             offset += chunk
             remaining -= chunk
@@ -204,18 +205,18 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
             return d2
 
 # newer Socrata does not have a limit
-def query_socrata(base,add_params):
+def query_socrata(base,add_params,verify=True):
     # Get the total number of items to query
     tot_query = base + add_params + "&$group=&$select=count(*)%20AS%20tot"
     #print(tot_query)
     # the tot query *NEEDS* to be json format
-    res_tot = requests.get(tot_query.replace('geojson','json'),verify=False)
+    res_tot = requests.get(tot_query.replace('geojson','json'),verify=verify)
     #print(res_tot.text)
     totn = int(res_tot.json()[0]['tot'])
     # with Socrata, can query the whole data
     whole_query = base + add_params + f'&$limit={totn}'
     #print(whole_query)
-    res = requests.get(whole_query,verify=False)
+    res = requests.get(whole_query,verify=verify)
     if 'geojson' in whole_query:
         data = gpd.read_file(res.text)
     else:
@@ -224,18 +225,18 @@ def query_socrata(base,add_params):
 
 
 # TODO
-def query_socrata_page(base,add_params,page_limit=1000):
+def query_socrata_page(base,add_params,page_limit=1000,verify=True):
     # Get the total number of items to query
     tot_query = base + add_params + "&$group=&$select=count(*)%20AS%20tot"
     #print(tot_query)
     # the tot query *NEEDS* to be json format
-    res_tot = requests.get(tot_query.replace('geojson','json'),verify=False)
+    res_tot = requests.get(tot_query.replace('geojson','json'),verify=verify)
     #print(res_tot.text)
     totn = int(res_tot.json()[0]['tot'])
     # with Socrata, can query the whole data
     whole_query = base + add_params + f'&$limit={totn}'
     #print(whole_query)
-    res = requests.get(whole_query,verify=False)
+    res = requests.get(whole_query,verify=verify)
     if 'geojson' in whole_query:
         data = gpd.read_file(res.text)
     else:
@@ -251,29 +252,29 @@ def query_opendata(base=cary_base,add_params='&where=year=2024'):
     # base should be the export endpoint
     return get_csv(base + add_params)
 
-def query_opendata_geo(base):
-    res = requests.get(base,verify=False)
+def query_opendata_geo(base,verify=True):
+    res = requests.get(base,verify=verify)
     areas = gpd.read_file(StringIO(res.text))
     return areas
 
-def phoenix_query(offset=0,limit=30000):
+def phoenix_query(offset=0,limit=30000,verify=True):
     url = 'https://www.phoenixopendata.com/api/3/action/datastore_search'
     data = {'resource_id': '0ce3411a-2fc6-4302-a33f-167f68608a20',
             'limit': str(limit),
             'offset': str(offset)}
     #'sort': '_id desc'
-    res = requests.get(url,params=data)
+    res = requests.get(url,params=data,verify=verify)
     rj = res.json()
     totn = rj['result']['total']
     df = pd.DataFrame(rj['result']['records'])
     return df
 
-def phoenix_max():
+def phoenix_max(verify=True):
     url = 'https://www.phoenixopendata.com/api/3/action/datastore_search'
     data = {'resource_id': '0ce3411a-2fc6-4302-a33f-167f68608a20',
             'limit': '1',
             'offset': '0'}
-    res = requests.get(url,params=data)
+    res = requests.get(url,params=data,verify=verify)
     rj = res.json()
     totn = rj['result']['total']
     return totn

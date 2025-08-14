@@ -10,6 +10,76 @@ from copy import copy
 import matplotlib.pyplot as plt
 from .cdcplot import combo_legend
 
+
+# Year to Date Stats
+def ytd_stats(data,date,groupby,prior_years=1,average=True,clip_last=True):
+    '''
+    Function to calculate year-to-date stats
+    calculates based on the last date in the data you feed
+    in
+    
+    data - dataframe with dummy variables
+    date - string for the date field name, default 'Date'
+    groupby - can be a string for a single field, or a list of multiple years
+              to get the metrics for
+    prior_years - int, default=1, number of prior years to include in the table
+    average - boolean, whether to average the 
+    
+    returns dataframe with the year-to-date metrics
+    along with the date for the event
+    '''
+    # Getting rid of bad dates and any UTC stuff
+    d2 = data[~data[date].isna()].copy()
+    d2[date] = pd.to_datetime(d2[date].dt.date)
+    # Getting the last date in the data
+    if type(groupby) == str:
+        gl = [date,groupby]
+        yl = ['Year',groupby]
+    else:
+        gl = [date] + list(groupby)
+        yl = ['Year'] + list(groupby)
+    
+    last_date = d2[date].max()
+    if clip_last:
+        last_date = last_date + pd.Timedelta(-1,"d")
+    
+    curr_year, curr_month, curr_day = last_date.year, last_date.month, last_date.day
+    # replacing all years to the same, year does not matter, but should be a
+    # leap year
+    d2 = data[gl].copy()
+    d2 = d2[~d2[date].isna()].copy()
+    d2['year'] = 2000
+    d2['month'] = d2[date].dt.month
+    d2['day'] = d2[date].dt.day
+    d2['new_date'] = pd.to_datetime(d2[['year','month','day']])
+    keep_rows = pd.to_datetime(f'2000-{curr_month}-{curr_day}') >= d2['new_date']
+    d2 = d2[keep_rows].copy()
+    d2['Year'] = d2[date].dt.year
+    year_keep = list(range(curr_year - prior_years,curr_year+1))
+    d2 = d2[d2['Year'].isin(year_keep)]
+    # groupby and then pivot
+    counts = d2.groupby(yl,as_index=False)[date].size()
+    df_wide = counts.pivot(index=groupby,columns='Year',values='size').fillna(0)
+    year_fields = list(df_wide)[::-1]
+    df_wide = df_wide[year_fields].copy()
+    df_wide.reset_index(inplace=True)
+    cols = list(set(list(df_wide)) - set(year_fields))
+    df = df_wide
+    if average & (prior_years > 1):
+        # you can ask for more years, but will not necessarily get them
+        # note if an entire year is missing, will not count as all 0's
+        avg_col = f'Average Prior {len(year_fields)-1} Years'
+        df[avg_col] = df[year_fields[1:]].mean(axis=1)
+        df['Difference'] = df[year_fields[0]] - df[avg_col]
+        df['PoissonZ'] = 2*(np.sqrt(df[year_fields[0]]) - np.sqrt(df[avg_col]))
+        df = df[cols + [year_fields[0],avg_col,'Difference','PoissonZ'] + year_fields[1:]]
+    else:
+        df['Difference'] = df[year_fields[0]] - df[year_fields[1]]
+        df['PoissonZ'] = 2*(np.sqrt(df[year_fields[0]]) - np.sqrt(df[year_fields[1]]))
+        df = df[cols + year_fields + ['Difference','PoissonZ']]
+    return df, last_date.strftime('%Y-%m-%d')
+
+
 def weekly_data(data,
                 date_field,
                 begin_week=None,

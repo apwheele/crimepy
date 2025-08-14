@@ -1,2 +1,4 @@
 *.pyc
 crimepy.egg-info/
+gurobi.log
+notebooks/cache/*

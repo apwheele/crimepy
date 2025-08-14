@@ -87,3 +87,20 @@ def load_network_data():
     G.add_nodes_from(lv)
     G.add_edges_from(edges.values)
     return G, nodes, edges
+
+
+def load_carrollton_data():
+    """
+    Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
+    """
+    # Use importlib_resources to access the data file packaged with the library
+    epsg = 'EPSG:2276'
+    data_path = importlib_resources.files('crimepy').joinpath('CarrolltonGrid.csv.zip')
+    
+    # read the zipped csv file
+    with data_path.open('rb') as f:
+        df = pd.read_csv(f, compression='zip')
+    
+    # Convert to geopandas
+    res_geo = gpd.GeoDataFrame(df,geometry=gpd.GeoSeries.from_wkt(df['geometry']), crs='EPSG:2276')
+    return res_geo

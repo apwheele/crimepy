@@ -1,11 +1,11 @@
 # crimpy -- a python package for crime analysis
 
-A python package to help conduct different various types of crime analysis
+A python package to help conduct different various types of crime analysis. Mostly a collection of various functions I have used over the years.
 
 Andrew Wheeler
 [Crime De-Coder LLC](https://crimede-coder.com/)
 
-![](/crimepy/CDC_Logo.svg)
+![](/crimepy/CDCWLineRec.PNG)
 
 ## Installation
 
@@ -34,7 +34,7 @@ See the notebooks folder for example analyses:
  - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
  - [Time Series Charts](./notebooks/TimeSeriescharts.ipynb)
 
-# ToDo
+## ToDo
 
  - Funnel charts
  - Example Folium helpers
@@ -42,5 +42,25 @@ See the notebooks folder for example analyses:
  - WDD
  - e-test
  - Patrol district
+ - synthetic control
  - tests
  - github actions
+ - network spillovers
+ - network experiment
+ - ?survey duplicates?
+ - nearby chains
+
+## Getting Started with Python
+
+Don't know where to get started? Check out my introductory book on python for crime analysts, [Data Science for Crime Analysis with Python](https://crimede-coder.com/blogposts/2024/PythonDataScience)
+
+![](https://crimede-coder.com/images/CoverPage.png)
+
+## References
+
+ - hot spots Dallas
+ - SPPT paper
+ - tables and graphs
+ - monitoring homicide
+ - gang network call-ins
+ - ??????
