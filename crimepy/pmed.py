@@ -24,13 +24,16 @@ warnings.filterwarnings('ignore')
 av_solv = pulp.listSolvers(onlyAvailable=True)
 
 # Calculating network distances, help via Claude
+# need to create checkpoints and save to disk
 def calculate_network_distances(df,distance_type,poly_df,buffer_distance):
     """
     Calculate network distances and drive times between coordinate pairs using OSMnx.
     
     Parameters:
     df: DataFrame with columns ID1, ID2, Distance, X1, Y1, X2, Y2
-    coordinate_system: EPSG code for input coordinates (default assumes lat/lon)
+    distance_type: string, either 'travel_distance' or 'travel_time'
+    poly_df: geopandas dataframe that gives the area to download street areas
+    buffer_distance: float, distance to buffer the poly_df boundary to get dangles
     
     Returns:
     DataFrame with added columns for network distance and drive time
@@ -95,12 +98,22 @@ def calculate_network_distances(df,distance_type,poly_df,buffer_distance):
     
     # Calculate network distance and drive time for each pair
     tot_size = result_df.shape[0]
-    if tot_size > 1000:
+    if tot_size > 5000:
+        check_size = 1000
+    elif tot_size > 1000:
         check_size = 100
     else:
         check_size = 10
     print(f"Calculating {tot_size} routes")
+    tot_bad = 0
+    tot_good = 0
+    tot_n = 0
     for idx, row in result_df.iterrows():
+        tot_n += 1
+        if tot_n == 100:
+            if tot_bad == 100:
+                print('First 100 attempts are bad, exiting out of solution')
+                return None
         try:
             # Find nearest network nodes to origin and destination
             orig_node = ox.nearest_nodes(G, row['lon1'], row['lat1'])
@@ -115,6 +128,7 @@ def calculate_network_distances(df,distance_type,poly_df,buffer_distance):
                                          for i in range(len(route_distance)-1)])
                     result_df.at[idx, 'network_distance'] = total_distance
                     result_df.at[idx, 'route_found'] = True
+                    tot_good += 1
                 elif distance_type == 'travel_time':
                     route_time = nx.shortest_path(G, orig_node, dest_node, weight='travel_time')
                     # Sum up the edge travel times
@@ -122,8 +136,17 @@ def calculate_network_distances(df,distance_type,poly_df,buffer_distance):
                                     for i in range(len(route_time)-1)])
                     result_df.at[idx, 'network_distance'] = total_time / 60  # Convert to minutes
                     result_df.at[idx, 'route_found'] = True
+                    tot_good += 1
             except nx.NetworkXNoPath:
-                print(f"No route found for row {idx} (distance)")
+                if tot_bad < 5:
+                    print(f"No route found for row {idx} (distance)")
+                elif tot_bad < 100:
+                    if tot_bad % 10 == 0:
+                        print(f"Total routes not found {tot_bad}")
+                else:
+                    if tot_bad % 100 == 0:
+                        print(f"Total routes not found {tot_bad}")
+                tot_bad += 1
                 continue
             
         except Exception as e:
@@ -137,17 +160,9 @@ def calculate_network_distances(df,distance_type,poly_df,buffer_distance):
     # Summary statistics
     successful_routes = result_df['route_found'].sum()
     print(f"\nSummary:")
-    print(f"Successfully calculated routes: {successful_routes}/{len(result_df)}")
     
     if successful_routes > 0:
-        avg_ratio = (result_df['network_distance']/result_df['distance']).mean()
-        print(f"Average ratio (Euclidean/Network): {avg_ratio:.3f}")
-        if distance_type == 'travel_distance':
-            print(f"Average network distance: {result_df['network_distance'].mean():.2f} m")
-        elif distance_type == 'travel_time':
-            print(f"Average drive time: {result_df['network_distance'].mean():.2f} minutes")
-        else:
-            print("distance_type is not correct, it should be 'travel_time' or 'travel_distance'")
+        print(f"Successfully calculated routes: {successful_routes}/{len(result_df)}")
     
     return result_df
 
@@ -158,11 +173,11 @@ def prep_dicts(gdf,id_field,calls_field):
     gdf -- geopandas dataframe, should be projected
     id_field -- unique identifier field
     
-    returns list of areas, continuity dictionary, and calls dictionary
+    returns list of areas, continuity dictionary (Rook), and calls dictionary
     """
     cr = gdf[[id_field,calls_field,'geometry']].copy()
     cr.set_index(id_field,inplace=True)
-    gdf_neighbors = lp.weights.Queen.from_dataframe(cr,use_index=True)
+    gdf_neighbors = lp.weights.Rook.from_dataframe(cr,use_index=True)
     gdf_adj_list = gdf_neighbors.to_adjlist(drop_islands=True)
     # identify missing locations
     # loop over focal, turn into dictionary
@@ -179,7 +194,8 @@ def prep_dicts(gdf,id_field,calls_field):
     return areas, cont_dict, call_dict
 
 # This returns a distance matrix, 
-def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time'):
+def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time',prior_df=None):
+    # The way the KDtree works, need to always redo that even if you have prior_df
     cr = gdf[[id_field,'geometry']].reset_index(drop=True)
     # should do an error if in epsg:4326
     # first getting the limited set if they are within geo-distance
@@ -203,13 +219,32 @@ def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time')
     res_pairs_np = res_pairs_np[res_pairs_np[:,2] > 0,:]
     col = ['ID1','ID2','distance','X1','Y1','X2','Y2']
     res_pairs_df = pd.DataFrame(res_pairs_np,columns=col)
+    # I should do a check to make sure that all locations are represented
+    unloc = pd.unique(res_pairs_df['ID1'])
+    tot_missing = (~cr[id_field].isin(unloc)).sum()
+    if tot_missing > 0:
+        print('Warning, the distance threshold is not large enough to connect')
+        print('all locations, please choose a larger threshold')
+    # filtering out the locations in the prior_df if available
+    if prior_df is not None:
+        print(f'Total size is {res_pairs_df.shape[0]}, filtering out prior {prior_df.shape[0]}')
+        checkprior = res_pairs_df.shape[0] - prior_df.shape[0]
+        res_pairs_mer = pd.merge(res_pairs_df,prior_df[['ID1','ID2','imputed_distance']],on=['ID1','ID2'],how='left')
+        mis = res_pairs_mer['imputed_distance'].isna()
+        res_pairs_df = res_pairs_mer[mis].reset_index(drop=True)
+        if mis.sum() != checkprior:
+            dif = mis.sum() - checkprior
+            print(f'Note not all prior are merged in! Missing {dif} more than expected')
     result = calculate_network_distances(res_pairs_df,distance_type,gdf,buffer_distance)
+    # combining back again
+    if prior_df is not None:
+        result = pd.concat([prior_df,result],ignore_index=True)
     # imputing distances using linear regression for those missing
     mis_data = result['network_distance'].isna()
     if mis_data.sum() > 0:
         print('Imputing missing data using linear regression')
         reg = linear_model.LinearRegression()
-        rdnm = result[~mis_data]
+        rdnm = result[result['route_found']] # using all real data
         reg.fit(rdnm[['distance']],rdnm['network_distance'])
         pred = pd.Series(reg.predict(result[['distance']]),index=result.index)
         result['imputed_distance'] = result['network_distance'].fillna(pred)
@@ -217,6 +252,11 @@ def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time')
         result['imputed_distance'] = result['network_distance']
     return result
 
+# pmed cannot calculate the distance matrix
+# in the function, it takes too long and is to
+# error prone
+# have that outside
+# result = get_distance(gdf,id_field,th,buffer_distance,distance_type)
 
 class pmed():
     """
@@ -226,38 +266,43 @@ class pmed():
     ta - integer number of areas to create
     ine - float inequality constraint
     th - float distance threshold to make a decision variables
-    buffer_distance - float, distance to buffer for osmnx for travel area (in whatever projection gdf is)
-    distance_type - string, either 'travel_time' or 'travel_distance', default to time
-                    travel time is in minutes, travel_distance is in meters
+    dist_matrix - pandas dataframe with the distance matrix info
     """
     def __init__(self,gdf,calls_field,id_field,
-                 ta,ine,th,buffer_distance,
-                 distance_type='travel_time'):
+                 ta,ine,th,dist_matrix):
         self.gdf = gdf
         self.Ta = ta
         self.In = ine
         self.Th = th
         self.id_field = id_field
         self.calls_field = calls_field
+        self.mod_iter = 0
         # Creating the base dictionaries
         areas, cont_dict, call_dict = prep_dicts(gdf,id_field,calls_field)
         self.Ar = areas
         self.Co = cont_dict
         self.Ca = call_dict
         # Creating the network dictionary
-        result = get_distance(gdf,id_field,th,buffer_distance,distance_type)
-        res_di = {}
-        for i in range(result.shape[0]):
-            li = result.iloc[i]['ID1']
-            lc = result.iloc[i]['ID2']
-            ld = result.iloc[i]['network_distance']            
-            if li in res_di:
-                res_di[li][lc] = ld
-            else:
-                res_di[li] = {lc:ld}
+        result = dist_matrix[['ID1','ID2','imputed_distance']].copy()
+        # adding in self locations
+        sa = pd.DataFrame([(a,a,0.0) for a in areas],columns=['ID1','ID2','imputed_distance'])
+        result = pd.concat([result,sa],ignore_index=True)
+        result['di'] = result[['ID2','imputed_distance']].apply(lambda x: {x.iloc[0]: x.iloc[1]},axis=1)
+        def merge_di(x):
+            merge_di = {}
+            for i in x:
+                merge_di.update(i)
+            return merge_di
+        res = result.groupby('ID1')['di'].agg(merge_di)
+        res_di = res.to_dict()
         self.dist_matrix = result
-        self.Di = res_di
-        #self.create_problem()
+        # Need to add in self locations as 0
+        self.Di = res_di # this expects the full distance matrix
+        # not running create problem, as you may need to modify some of these data elements
+    def modify_cont(self,pairs):
+        for a,b in pairs:
+            self.Co[a].append(b)
+            self.Co[b].append(a)
     def create_problem(self):
         # Assigning initial properties of object
         Ar = self.Ar
@@ -267,6 +312,7 @@ class pmed():
         Ta = self.Ta
         In = self.In
         Th = self.Th
+        DM = self.dist_matrix
         self.subtours = [] #empty subtours to start
         self.objective = -1 #objective values
         self.pairs = None #where to stuff the matched areas
@@ -282,16 +328,12 @@ class pmed():
                 G.add_edge(i,j)
         self.co_graph = G
         # Creating threshold vectors for decision variables
-        NearAreas = {}
-        Thresh = []
-        for s in Ar:
-            NearAreas[s] = []
-            for d in Ar:
-                if d in Di[s]:
-                    if Di[s][d] < Th:
-                        Thresh.append((s,d))
-                        NearAreas[s].append(d)
+        near_locs = (DM['imputed_distance'] < Th)
+        Thresh = DM[near_locs][['ID1','ID2']].values.tolist()
+        NearAreas = DM[near_locs].groupby('ID1')['ID2'].agg(lambda x: x.tolist()).to_dict()
+        RevNearAreas = DM[near_locs].groupby('ID2')['ID1'].agg(lambda x: x.tolist()).to_dict()
         self.NearAreas = NearAreas
+        self.RevNearAreas = RevNearAreas
         self.Thresh = Thresh
         # Setting up the pulp problem
         P = pulp.LpProblem("P-Median",pulp.LpMinimize)
@@ -309,7 +351,7 @@ class pmed():
         # Constraint on max number of areas
         P += pulp.lpSum(y_vars[s] for s in Ar) == Ta
         tot_constraints += 1
-        # Constraint nooffbeat if local is not assigned (1)
+        # Constraint no offbeat if local is not assigned (1)
         # Second is contiguity constraint
         for s,d in Thresh:
             P += assign_areas[(s,d)] - y_vars[s] <= 0
@@ -327,7 +369,7 @@ class pmed():
         # Constraint every destination covered once
         # Then Min/Max inequality constraints
         for (sl,dl) in zip(Ar,Ar):
-            P += pulp.lpSum(assign_areas[(s,dl)] for s in NearAreas[dl]) == 1
+            P += pulp.lpSum(assign_areas[(s,dl)] for s in RevNearAreas[dl]) == 1
             P += pulp.lpSum(assign_areas[(sl,d)]*Ca[d] for d in NearAreas[sl]) <= MaxIneq
             P += pulp.lpSum(assign_areas[(sl,d)]*Ca[d] for d in NearAreas[sl]) >= MinIneq*y_vars[sl]
             tot_constraints += 3
@@ -350,6 +392,7 @@ class pmed():
         to see available solvers on your machine
         """
         print(f'Starting to solve function at {datetime.now()}')
+        self.mod_iter += 1
         if solver == None:
             self.model.solve()
         else:
@@ -374,6 +417,7 @@ class pmed():
                     results.append((s,d,self.Di[s][d],self.Ca[d],self.Ca[d]*self.Di[s][d]))
             results_df = pd.DataFrame(results,columns=['Source','Dest','Dist','Calls','DWeightCalls'])
             self.pairs = results_df
+            self.agg_stats = results_df.groupby('Source',as_index=False)['Calls'].sum()
             # Calculating number of unique areas as a check
             source_areas = pd.unique(results_df['Source'])
             tot_source = len(source_areas)
@@ -383,7 +427,7 @@ class pmed():
                 print(f'Potential Error, total source areas is {tot_source}, specified {self.Ta} areas')
         except:
             print('Unable to append results')
-    def map_plot(self,geo_map,id_str,savefile=None):
+    def map_plot(self,savefile=None,show=False,ax=None):
         geo_map = self.gdf
         id_str = self.id_field
         # Merging in data into geoobject
@@ -396,11 +440,16 @@ class pmed():
         source_locs = geo_mer[geo_mer['Source'] == geo_mer['Dest']].copy()
         diss_areas = geo_mer[['Source','geometry','Calls','DWeightCalls']].dissolve(by='Source',aggfunc='sum')
         # Now making the plot
-        ax = geo_mer.plot(column='Source', cmap='Spectral', categorical=True)
+        ax = geo_mer.plot(column='Source', cmap='Spectral', categorical=True,ax=ax)
         source_locs.geometry.centroid.plot(ax=ax,color='k',edgecolor='white')
         diss_areas.boundary.plot(ax=ax,facecolor=None,edgecolor='k')
+        # no x/y ticks
+        xticks = ax.get_xaxis().set_ticks([])
+        yticks = ax.get_yaxis().set_ticks([])
         if savefile:
             plt.savefig(savefile, dpi=500, bbox_inches='tight')
+        elif show is False:
+            return ax
         else:
             plt.show()
     def collect_subtours(self):
@@ -423,17 +472,27 @@ class pmed():
                     else:
                         subtours.append((a,c))
         if len(subtours) >= 1:
+            res_subtours = {}
+            tot_sub = 0
             # Stats for how many calls/crimes are in those subtours
             for i,s in enumerate(subtours):
                 tot_calls = 0
                 for a in s[1]:
                     tot_calls += self.Ca[a]
                 print(f'{i}: Subtour {s} has total {tot_calls} calls')
-            # Adding subtour contraints back into main problem
+                tot_sub += tot_calls
+            # Adding subtour constraints back into main problem
             for src,des in subtours:
                 sub_check = len(des) - 1
-                self.model += pulp.lpSum(pmed12.assign_areas[(src,d)] for d in des) <= sub_check
+                self.model += pulp.lpSum(self.assign_areas[(src,d)] for d in des) <= sub_check
+            # if all locations have 0 calls, just reassigning them to contiguous areas
+            # as they do not impact the objective function
+            if tot_sub == 0:
+                print('All subtours have 0 calls, can assign these locations to wherever convenient')
+                self.last_subtour = subtours
+                return 0
             # Adding subtours into model object
+            self.last_subtour = subtours
             self.subtours += subtours
             # Message to warm start
             print('When resolving model, may wish to use warmStart=True if available for solver')
@@ -441,3 +500,7 @@ class pmed():
         else:
             print('No subtours found, your solution appears OK')
             return 1
+    def fix_zero_subtours(self):
+            # todo, a function to clean up these 0 area subtours
+            # and assign them to a contiguous area
+            pass
