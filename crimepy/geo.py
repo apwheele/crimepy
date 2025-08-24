@@ -433,8 +433,7 @@ class GeoAreaHandler(HandlerBase):
 # Handler for square grid cell
 class GridAreaHandler(HandlerBase):
     def __init__(self, fill='grey', fill_alpha=1.0, edge='black', edge_alpha=1.0,
-                 edge_width=1, scale_factor=2.0, 
-                 x_scale_factor=0.5, y_scale_factor=1.0,xshift=1.5,yshift=-3.5):
+                 edge_width=1, scale_factor=1.2,xshift=0,yshift=0.0):
         super().__init__()
         self.fill = fill
         self.fill_alpha = fill_alpha
@@ -442,18 +441,16 @@ class GridAreaHandler(HandlerBase):
         self.edge_alpha = edge_alpha
         self.stroke_width = edge_width
         self.scale_factor = scale_factor
-        self.x_scale_factor = x_scale_factor
-        self.y_scale_factor = y_scale_factor
         self.xshift = xshift
         self.yshift = yshift
     def create_artists(self, legend, orig_handle, xdescent, ydescent, 
                       width, height, fontsize, trans):
         # making this into a square
-        side_length = min(height,width)
+        side_length = min(height,width)*self.scale_factor
         center_x = xdescent + width/2
         center_y = ydescent + height/2
-        x_square_origin = center_x - side_length/2
-        y_square_origin = center_y - side_length/2
+        x_square_origin = center_x - side_length/2 + self.xshift
+        y_square_origin = center_y - side_length/2 + self.yshift
         interior = patches.Rectangle([x_square_origin, y_square_origin], side_length, side_length,
                                     facecolor=self.fill, 
                                     alpha=self.fill_alpha,
