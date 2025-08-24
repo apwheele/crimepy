@@ -35,23 +35,26 @@ See the notebooks folder for example analyses:
  - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
  - [Time Series Charts](./notebooks/TimeSeriesCharts.ipynb)
  - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
+ - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
 
 ## ToDo
 
  - Example querying data
  - Funnel charts
  - Example Folium helpers
- - SPPT
- - WDD & e-test
- - synthetic control
- - network spillovers
- - network experiment
+ - SPPT crime to police activity example
+ - WDD & e-test example
+ - synthetic control in code + example
+ - network spillovers code + example
+ - network experiment code + example
  - ?survey duplicates?
  - nearby chains
- - references in notebooks
- - nicer description of fields in patrol districting
+ - small sample Benford/Day of week functions & example
+ - full docstrings for all functions
  - tests
- - github actions
+ - github actions for code quality and pytest
+ - try patrol districting with googles ORtools, see how fast it runs
+ - simpler tests for districting
 
 ## Getting Started with Python
 

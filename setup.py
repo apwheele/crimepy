@@ -23,6 +23,7 @@ setuptools.setup(
         'matplotlib',
         'pandas',
         'scikit-learn',
+        'scipy>1.11',
         'geopandas',
         'folium',
         'requests',
@@ -40,7 +41,8 @@ setuptools.setup(
         'ipycytoscape',
         'pulp',
         'highspy',
-        'libpysal'
+        'libpysal',
+        'openpyxl'
     ],
     tests_require=[
         'pytest',

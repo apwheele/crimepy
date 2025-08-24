@@ -252,6 +252,29 @@ def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time',
         result['imputed_distance'] = result['network_distance']
     return result
 
+
+def intersection_length(poly1,poly2,smb=1e-15):
+    '''
+    Length of the intersection between two shapely polygons
+    
+    poly1 - shapely polygon
+    poly2 - shapely polygon
+    smb - float, defaul 1e-15, small distance to buffer
+    
+    The way this works, I compute a very small buffer for
+    whatever polygon is simpler (based on length)
+    then take the intersection and divide by 2
+    so not exact, but close enough for this work
+    '''
+    # buffer the less complicated edge of the two
+    if poly1.length > poly2.length:
+        p2, p1 = poly1, poly2
+    else:
+        p1, p2 = poly1, poly2
+    # This basically returns a very skinny polygon
+    pb = p1.buffer(smb,cap_style='flat').intersection(p2)
+    return (pb.length-2*smb)/2
+
 # pmed cannot calculate the distance matrix
 # in the function, it takes too long and is to
 # error prone
@@ -500,7 +523,38 @@ class pmed():
         else:
             print('No subtours found, your solution appears OK')
             return 1
-    def fix_zero_subtours(self):
-            # todo, a function to clean up these 0 area subtours
-            # and assign them to a contiguous area
-            pass
+    def clean_zero(self):
+        ls = []
+        for s,d in self.last_subtour:
+            ls += d
+        while ls:
+            # step2, calculate shared border
+            max_bord = 0
+            for l in ls:
+                # remove the other disjointed nodes
+                G2 = self.co_graph.copy()
+                G2.remove_nodes_from(set(ls) - set([l]))
+                # get neighbors that are attached
+                ne = G2.neighbors(l)
+                l1 = self.gdf.loc[self.gdf[self.id_field] == l,'geometry'].iloc[0]
+                # get the shared border length
+                # could also select based on nearest to source
+                for n in ne:
+                    # if max, select that one
+                    l2 = self.gdf.loc[self.gdf[self.id_field] == n,'geometry'].iloc[0]
+                    resl = intersection_length(l1,l2)
+                    if resl > max_bord:
+                        max_bord = resl
+                        fin_l = l
+                        share_l = n
+            # just a double check to exit if there is a problem
+            if max_bord == 0:
+                print(f'Remaining areas to merge are {ls}')
+                print('There is some issue with no further shared border locations available')
+            # step3, for edge longest shared border not in subtour, merge
+            new_source = self.pairs.loc[self.pairs['Dest'] == share_l,'Source'].iloc[0]
+            self.pairs.loc[self.pairs['Dest'] == fin_l,'Source'] = new_source
+            print(f'Reassigning location {fin_l} to new source {new_source}')
+            # might also change the problem vars
+            # remove from ls
+            ls.remove(fin_l)

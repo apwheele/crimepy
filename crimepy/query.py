@@ -22,10 +22,13 @@ def get_csv(url,verify=True):
     return res_pd
 
 # Reads a dataframe from local or CSV
-def read_data(file,verify=True):
-    fe = os.path.splitext(file)[-1]
+def read_data(file,verify=True,filetype=None):
+    if filetype is None:
+        fe = os.path.splitext(file)[-1]
+    else:
+        fe = filetype
     if file[:4] == 'http':
-        if fe == '.csv':
+        if (fe == '.csv') | (fe == 'zip'):
             res = get_csv(url,verify)
         elif (fe == '.xlsx') | (fe == '.xls') | (fe == '.xlsb'):
             res = pd.read_excel(file)
@@ -50,14 +53,14 @@ def read_data(file,verify=True):
 
 
 # caches file locally if downloaded from URL
-def cache(url,file,exist_only=False,verify=True):
+def cache(url,file,exist_only=False,verify=True,filetype=None):
     res = None
     if os.path.exists(file):
         res = read_data(file,verify)
     else:
         if exist_only:
             return res
-        res = read_data(url,verify)
+        res = read_data(url,verify,filetype)
         res.to_csv(file,index=False)
     return res
 

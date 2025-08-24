@@ -24,7 +24,7 @@ import os
 from pylab import cm
 from folium.plugins import MarkerCluster
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry import Point
 from shapely.ops import unary_union
 import re
@@ -36,13 +36,37 @@ import re
 # final map with many elements
 FOLIUM_ROUND = 6
 
-def nice_outline(geometry,buffer=None,simplify=None,perserve=False):
+def nice_outline(geometry,buffer=None,simplify=None,preserve=False,keep_largest=False,holes=False):
+    '''
+    Used to somewhat simplify different geographic borders
+    uses a + and then - buffer, then simplifies the boundary
+    
+    buffer - float, does and outward and then inward buffer
+             if None does not do this operation
+    simplify - float, simplifies the boundary, if None does not
+               do this operation
+    preserve - boolean, whether to preserve topology, default False
+               presuming you will be using this for single borders
+    '''
     g = geometry.copy()
     if buffer:
         g = g.buffer(buffer)
         g = g.buffer(-buffer)
     if simplify:
-        g = g.simplify(simplify,perserve_topology=preserve)
+        g = g.simplify(simplify,preserve_topology=preserve)
+    if keep_largest:
+        ge = g.explode()
+        ar = ge.area
+        maxg = np.int64(0)
+        g = ge[maxg]
+    if holes:
+        ge = g.explode()
+        ge = ge.apply(lambda x: Polygon(x.exterior))
+        if ge.shape[0] == 1:
+            g = ge
+        else:
+            m = MultiPolygon([p for p in ge])
+            g.iloc[0] = m
     return g
 
 def round_geo(geometry,rnd=FOLIUM_ROUND):
@@ -59,6 +83,15 @@ def round_geo(geometry,rnd=FOLIUM_ROUND):
 
 # Convert XY or latlon into geopandas
 def convgpd(data,xy,proj='EPSG:4326'):
+    '''
+    Convert dataframe to geopandas dataframe
+    
+    data - dataframe
+    xy - list of strings for the x and y fields
+    proj - projection string, default EPSG:4326 (for lon/lat)
+    
+    returns a geopandas dataframe with point geometries
+    '''
     # default proj in Lat/Lon
     miss_xy = data[xy].isna().sum(axis=1) == 0
     d2 = data[miss_xy].reset_index(drop=True)
@@ -67,12 +100,33 @@ def convgpd(data,xy,proj='EPSG:4326'):
     return gdf
 
 def proj_xy(data,x,y,proj,inverse):
+    '''
+    Change xy data to either lat/lon or a local
+    projection
+    
+    data - dataframe
+    x - string for x field
+    y - string for y field
+    proj - proj4 string, e.g. 'EPSG:2277'
+    inverse - boolean, if True converts local projection to EPSG:4326
+              if False, converts lat/lon to local projection
+    '''
     p = pyproj.Proj(proj)
     resx, resy = p(data[x],data[y],inverse=inverse)
     return pd.DataFrame(zip(resx,resy),columns=['Lon','Lat'])
 
 # Point-in-Poly
 def pip(points,boundary,keep=[]):
+    '''
+    point-in-polygon
+    
+    points - points dataframe
+    boundary - boundary dataframe
+    keep - list of fields from boundary to keep, default none
+    
+    returns a copy of points that are within the boundary of the geo
+    area
+    '''
     b2 = boundary.copy()
     b2['BOUNDARY_ID'] = range(b2.shape[0])
     try:
@@ -83,6 +137,18 @@ def pip(points,boundary,keep=[]):
 
 # this just returns a boolean not in polygons
 def pnip(points,polys,not_in=True):
+    '''
+    point-not-in-poly
+    this just returns a boolean whether inside or not
+    first dissolves polys into a single geometry then checks
+    
+    points - points dataframe
+    polys - polygon dataframe
+    not_in - boolean, if True, returns "not in"
+             if False, returns "in"
+    
+    returns a pandas Series of boolean values
+    '''
     b2 = polys.copy()
     b2['CONST'] = 1
     b2 = b2.dissolve('CONST')
@@ -105,6 +171,23 @@ def dissolve_overlap(data, id='lab'):
 
 
 def db_hotspots(data,distance,min_samp,sf=[],weight=None):
+    '''
+    Creates db-scan hotspots
+    
+    data - geopandas dataframe with points
+    distance - float the distance to consider core points
+               you should be doing this in a projected CRS
+    min_samp - the minimum sample to consider a core cluster
+               if you use weights, it will be for the sum of the weights
+    sf - list of additional fields to generate aggregate sums for, default
+         empty list, e.g. if you clustered violent, and then had dummy variables
+         for robbery, assault, it would provide the unique counts for each
+    weight - string for the field that has the weights. Default None, if None
+             each point is given a weight of 1
+    
+    returns a geopandas dataframe with the DBScan areas and associated metrics
+    if no hotspots found, returns -1
+    '''
     # Create data and fit DBSCAN
     d2 = data.reset_index(drop=True)
     if weight is None:
@@ -145,20 +228,36 @@ def db_hotspots(data,distance,min_samp,sf=[],weight=None):
 # Generating spatial grid over the city
 # adapted via https://gis.stackexchange.com/a/316460/751
 def grid_over(base, size, percent=None):
+    '''
+    Creates a regular grid over the study area
+    
+    base -- base boundary area
+    size -- sive of the grid cells (expects it in projected units)
+    percent -- float between 0 and 1, default None
+               this will trim grid cells that are only partially
+               overlapp the study area, so if it only overlaps 5%
+               can eliminate it
+    
+    returns a geopandas dataframe with the polygons and centroids
+    for the grid cells
+    '''
     b2 = base.copy()
     b2['XXX_BASECONSTANT_XXX'] = 1
     xmin, ymin, xmax, ymax = base.total_bounds
     xl = np.arange(xmin, xmax, size)
     yl = np.arange(ymin, ymax, size)
-    polygons = []
-    xc = []
-    yc = []
+    xv = np.tile(xl,yl.shape[0])
+    yv = np.repeat(yl,xl.shape[0])
     half = size/2.0
-    for x in xl:
-        for y in yl:
-            polygons.append(Polygon([(x,y), (x+size, y), (x+size, y+size), (x, y+size)]))
-            xc.append(x+half)
-            yc.append(y+half)
+    xc = xv + half
+    yc = yv + half
+    df = pd.DataFrame(zip(xv,yv),columns=['XO','YO'])
+    def poly(v):
+        x = v.iloc[0]
+        y = v.iloc[1]
+        poly = Polygon([(x,y), (x+size, y), (x+size, y+size), (x, y+size)])
+        return poly
+    polygons = df.apply(poly,axis=1)
     grid = gpd.GeoDataFrame({'geometry':polygons}).set_crs(base.crs)
     grid['X'] = xc
     grid['Y'] = yc
@@ -175,6 +274,13 @@ def grid_over(base, size, percent=None):
 
 # This modifies poly in place
 def count_points(poly,points,var_name):
+    '''
+    This counts points inside of a polygon in-place
+    
+    poly - the polygon you want the counts aggregated to
+    points - the point dataframe
+    var_name - what the resulting count will be
+    '''
     #join = gpd.sjoin(points, poly, how="left", op='intersects')
     join = gpd.sjoin(points, poly, how="left",predicate='intersects')
     cnt = join['index_right'].value_counts()
@@ -324,6 +430,45 @@ class GeoAreaHandler(HandlerBase):
         artists = [interior,exterior]
         return artists
 
+# Handler for square grid cell
+class GridAreaHandler(HandlerBase):
+    def __init__(self, fill='grey', fill_alpha=1.0, edge='black', edge_alpha=1.0,
+                 edge_width=1, scale_factor=2.0, 
+                 x_scale_factor=0.5, y_scale_factor=1.0,xshift=1.5,yshift=-3.5):
+        super().__init__()
+        self.fill = fill
+        self.fill_alpha = fill_alpha
+        self.edge = edge
+        self.edge_alpha = edge_alpha
+        self.stroke_width = edge_width
+        self.scale_factor = scale_factor
+        self.x_scale_factor = x_scale_factor
+        self.y_scale_factor = y_scale_factor
+        self.xshift = xshift
+        self.yshift = yshift
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, 
+                      width, height, fontsize, trans):
+        # making this into a square
+        side_length = min(height,width)
+        center_x = xdescent + width/2
+        center_y = ydescent + height/2
+        x_square_origin = center_x - side_length/2
+        y_square_origin = center_y - side_length/2
+        interior = patches.Rectangle([x_square_origin, y_square_origin], side_length, side_length,
+                                    facecolor=self.fill, 
+                                    alpha=self.fill_alpha,
+                                    edgecolor='none',
+                                    linewidth=0,
+                                    transform=trans)
+        exterior = patches.Rectangle([x_square_origin, y_square_origin], side_length, side_length,
+                                    facecolor='none', 
+                                    alpha=self.edge_alpha,
+                                    edgecolor=self.edge,
+                                    linewidth=self.stroke_width,
+                                    transform=trans)
+        artists = [interior,exterior]
+        return artists
+
 class HotSpotLegendItem:
     def __init__(self, label="HotSpot"):
         self.label = label
@@ -332,12 +477,17 @@ class GeoAreaLegendItem:
     def __init__(self, label="Boundary"):
         self.label = label
 
+class GridAreaLegendItem:
+    def __init__(self, label="Grid Cell"):
+        self.label = label
+
 # simpler to remember this
 colalpha = colorConverter.to_rgba
 
 # Should also do one for lines, circles, or other point glyphs
 handle_di = {'GeoArea': (GeoAreaLegendItem,GeoAreaHandler),
-             'HotSpot': (HotSpotLegendItem,HotSpotHandler)
+             'HotSpot': (HotSpotLegendItem,HotSpotHandler),
+             'GridArea': (GridAreaLegendItem,GridAreaHandler),
              }
 
 def map_legend(types,styles):

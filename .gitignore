@@ -2,3 +2,5 @@
 crimepy.egg-info/
 gurobi.log
 notebooks/cache/*
+notebooks/*.zip
+!notebooks/network_data.csv.zip
