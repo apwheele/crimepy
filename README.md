@@ -36,10 +36,10 @@ See the notebooks folder for example analyses:
  - [Time Series Charts](./notebooks/TimeSeriesCharts.ipynb)
  - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
  - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
+ - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
 
 ## ToDo
 
- - Example querying data
  - Funnel charts
  - Example Folium helpers
  - SPPT crime to police activity example

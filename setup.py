@@ -42,7 +42,9 @@ setuptools.setup(
         'pulp',
         'highspy',
         'libpysal',
-        'openpyxl'
+        'openpyxl',
+        'tabulate',
+        'TableauScraper'
     ],
     tests_require=[
         'pytest',
