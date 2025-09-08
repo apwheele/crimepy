@@ -270,7 +270,7 @@ def grid_over(base, size, percent=None):
         gj2 = gpd.overlay(gloc,b2,how='intersection')
         perc = gj2.geometry.area/gloc.geometry.area
         gloc = gloc[perc > percent].reset_index()
-    return gloc
+    return gloc.rename(columns={'index':'id'})
 
 # This modifies poly in place
 def count_points(poly,points,var_name):
@@ -285,7 +285,7 @@ def count_points(poly,points,var_name):
     join = gpd.sjoin(points, poly, how="left",predicate='intersects')
     cnt = join['index_right'].value_counts()
     poly[var_name] = cnt
-    poly[var_name].fillna(0,inplace=True)
+    poly[var_name] = poly[var_name].fillna(0)
 
 # hexagon map, https://github.com/mrcagney/geohexgrid
 # raster KDE map
@@ -588,8 +588,6 @@ def base_folium(boundary=None,
                 opacity=0.3,
                 logo=False,
                 legend_name="City Boundary",
-                geo=False,
-                geo_loc='topleft',
                 location=None,
                 show=True):
     if boundary is not None:
@@ -636,12 +634,7 @@ def base_folium(boundary=None,
     if logo:
         fi = FloatImage("https://crimede-coder.com/images/CrimeDeCoder_Logo_Small.PNG", bottom=10, left=0.4)
         fi.add_to(mapf)
-    # Layer control needs to be last
-    # Geocoder if you want it
-    if geo:
-        geoc = Geocoder(position='geo_loc',add_marker=True)
-        geoc.add_to(mapf)
-    #folium.LayerControl(collapsed=False).add_to(mapf)
+    # Layer control and geocoder need to be added later if you want them
     return mapf
 
 # Adding hotspots
@@ -1155,7 +1148,12 @@ th, td {
 </style>'''
 
 
-def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=True):
+def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=True,geo=False,
+             geo_loc='topleft'):
+    # Geocoder should be added after other layers
+    if geo:
+        geoc = Geocoder(position=geo_loc,add_marker=True)
+        geoc.add_to(mapf)
     # Need to add in layercontrol at the very end
     if layer:
         folium.LayerControl(collapsed=False).add_to(mapf)
@@ -1180,7 +1178,8 @@ def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=
             rl.append(ss)
     rlc = '\n'.join(rl)
     #mapf.save(file)
-    if os.path.exists(file):
-        os.remove(file)
-    with open(file, "w") as f:
-        f.write(rlc)
+    if file is not None:
+        if os.path.exists(file):
+            os.remove(file)
+        with open(file, "w") as f:
+            f.write(rlc)

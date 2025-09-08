@@ -37,24 +37,31 @@ See the notebooks folder for example analyses:
  - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
  - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
  - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
+ - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
 
 ## ToDo
 
+Additional examples in Notebooks and documentation (contributors welcome!)
+
  - Funnel charts
- - Example Folium helpers
- - SPPT crime to police activity example
  - WDD & e-test example
- - synthetic control in code + example
- - network spillovers code + example
- - network experiment code + example
- - ?survey duplicates?
  - nearby chains
+ - SPPT crime to police activity example
  - small sample Benford/Day of week functions & example
  - full docstrings for all functions
  - tests
  - github actions for code quality and pytest
  - try patrol districting with googles ORtools, see how fast it runs
  - simpler tests for districting
+
+Other additional methods *I may* add (if you want these, let me know):
+
+ - synthetic control using Lasso ([blog post](https://andrewpwheeler.com/2023/10/04/synthetic-control-in-python-opioid-death-increases-in-oregon-and-washington/))
+ - network spillovers optimal assignment ([blog post](https://andrewpwheeler.com/2019/09/27/optimal-treatment-assignment-with-network-spillovers/))
+ - network experiment design ([Notebook](https://github.com/apwheele/Blog_Code/blob/master/Python/NetworkExperiment/NetworkExperimentDesign.ipynb))
+ - ?survey duplicates? ([Notebook](https://github.com/apwheele/Blog_Code/blob/master/Python/SurveyMatch/DupsSurvey.ipynb))
+
+Suggestions are always welcome -- direct contributions are a better way to get the items you want in the codebase.
 
 ## Getting Started with Python
 
