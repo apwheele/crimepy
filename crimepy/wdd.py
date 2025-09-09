@@ -169,6 +169,52 @@ def wdd_harm(est, se, weight, alpha=0.1, silent=True):
 #tot['weight'] = [3,2,5,7,10]
 #wdd_harm(tot['Est_Total'], tot['SE_Total'],tot['weight'],alpha=0.05)
 
+
+def cum_wdd(data,treat,cont,alpha=0.1):
+    """
+    Calculate cumulative differences in treated/control
+    over time
+    
+    Parameters:
+    -----------
+    data : pandas.Dataframe with the data
+    treat: string with the treated field (counts over time)
+    cont: string with the control field (counts over time)
+    alpha: float between 0 and 1 default 0.1 (for 90% confidence intervals)
+    
+    Returns:
+    --------
+    pandas dataframe with additional fields estimate reduction over time with standard errors
+    """
+    df = data[[treat,cont]].copy()
+    # Overall Counts
+    df['CumTreat'] = df[treat].cumsum()
+    df['CumCont'] = df[cont].cumsum()
+    df['CumDif'] = df['CumTreat'] - df['CumCont']
+    df['SE'] = np.sqrt(df['CumTreat'] + df['CumCont'])
+    z = norm.ppf(1-alpha/2)
+    df['LowCI'] = df['CumDif'] - z*df['SE']
+    df['HighCI'] = df['CumDif'] + z*df['SE']
+    # Normalized per unit time
+    norm_punit = np.arange(1,df.shape[0]+1)
+    df['CumNorm'] = df['CumDif']/norm_punit
+    inv_sq = (1/norm_punit)**2
+    df['SENorm'] = np.sqrt(inv_sq*df['CumTreat'] + inv_sq*df['CumCont'])
+    df['LowCI_Norm'] = df['CumNorm'] - z*df['SENorm']
+    df['HighCI_Norm'] = df['CumNorm'] + z*df['SENorm']
+    # IRR statistic (for percentage change) [clipping to avoid errors]
+    # presumably should only do this for actual counts in control
+    df['LogIRR'] = np.log(df['CumTreat']/df['CumCont'].clip(1))
+    df['SElogIRR'] = np.sqrt(1/df['CumTreat'] + 1/df['CumCont'].clip(1))
+    df['IRR'] = np.exp(df['LogIRR'])
+    df['LowCI_IRR'] = np.exp(df['LogIRR'] - z*df['SElogIRR'])
+    df['HighCI_IRR'] = np.exp(df['LogIRR'] + z*df['SElogIRR'])
+    df['PercentChangeEst'] = (1 - df['IRR'])*100
+    df['LowPercentChange'] = (1 - df['LowCI_IRR'])*100
+    df['HighPercentChange'] = (1 - df['HighCI_IRR'])*100
+    return df
+
+
 # E-test functions
 def minPMF(r,log_eps=-500):
     """
@@ -231,7 +277,7 @@ def etest(k1, k2, n1=1, n2=1, d=0, log_eps=-500):
     Tk = abs((r1 - r2 - d)/math.sqrt(lhat))
     
     d1 = nf2 * lhat
-    d2 = nf1 * (lhat + d) if d != 0 else d1
+    d2 = nf1 * (lhat + d) #if d != 0 else d1
     
     # instead of worrying about looping to get minPMF values
     # generating the bigger vectors and then just lopping them off
@@ -243,7 +289,7 @@ def etest(k1, k2, n1=1, n2=1, d=0, log_eps=-500):
     x1t = np.tile(x1,log_p2.shape[0])[1:]
     x2t = np.repeat(x2,log_p1.shape[0])[1:]
     rp = np.sqrt((x1t + x2t)/(nf1 + nf2))
-    Tx = np.abs(((x1t/nf1) - (x2t/nf2) - d)/rp)
+    Tx = np.abs((x1t/nf1) - (x2t/nf2) - d)/rp
     gt = Tx >= Tk
     log_probs = exp_p1[gt] + exp_p2[gt]
     if log_probs.shape[0] == 0:

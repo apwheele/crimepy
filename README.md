@@ -1,4 +1,4 @@
-# crimpy -- a python package for crime analysis
+# crimepy -- a python package for crime analysis
 
 A python package to help conduct different various types of crime analysis. Mostly a collection of various functions I have used over the years.
 
@@ -38,13 +38,13 @@ See the notebooks folder for example analyses:
  - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
  - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
  - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
+ - [Weighted Displacement Difference to See Changes over Time](./notebooks/WDD_Examples.ipynb)
 
 ## ToDo
 
 Additional examples in Notebooks and documentation (contributors welcome!)
 
  - Funnel charts
- - WDD & e-test example
  - nearby chains
  - SPPT crime to police activity example
  - small sample Benford/Day of week functions & example
@@ -53,6 +53,8 @@ Additional examples in Notebooks and documentation (contributors welcome!)
  - github actions for code quality and pytest
  - try patrol districting with googles ORtools, see how fast it runs
  - simpler tests for districting
+ - Folium example for lines and graduated circles
+ - scan statistic (see [this blog post for R implementation](https://andrewpwheeler.com/2023/10/18/fitting-beta-binomial-in-python-poisson-scan-stat-in-r/))
 
 Other additional methods *I may* add (if you want these, let me know):
 
