@@ -307,3 +307,111 @@ def etest(k1, k2, n1=1, n2=1, d=0, log_eps=-500):
 #etest(-2,1) - not defined
 #etest(20,20) - should not be over 1, due to finite sum is lower than 1
 
+def scanw(L, k, mu, n):
+    """
+    Scan statistic approximation for counts in moving window.
+    
+    Naus scan statistic approximation for Poisson counts in moving window over 
+    a particular time period.
+    
+    Parameters
+    ----------
+    L : int
+        Number of time periods in the window
+    k : int
+        Window scan time period
+    mu : float
+        Poisson average per single time period
+    n : int
+        Observed count
+    
+    Returns
+    -------
+    float
+        Probability value from the scan statistic approximation
+    
+    Notes
+    -----
+    When examining counts of items happening in a specific, discrete set of windows,
+    e.g. counts of crime per week, one can use the Poisson PMF to determine the 
+    probability of getting an observation over a particular value. For example, if 
+    you have a mean of 1 per week, the probability of observing a single week with 
+    a count of 6 or more is `poisson.sf(5, 1)` (approximately 0.0006). But if you 
+    have monitored a series over 5 years (260 weeks), then the expected number of 
+    seeing at least one 6 count in the time period is `poisson.sf(5, 1) * 260`, 
+    over 15%.
+    
+    Now imagine we said "in this particular week span, I observed a count of 6". 
+    So it is not in pre-specified week, e.g. Monday through Sunday, but examining 
+    over *any* particular moving window. Naus (1982) provides an approximation to 
+    correct for this moving window scan. In this example, it ends up being close 
+    to 50% is the probability of seeing a moving window of 6 events.
+    
+    References
+    ----------
+    Naus, J.I. (1982). Approximations for distributions of scan statistics. 
+    Journal of the American Statistical Association, 77, 177-183.
+    """
+    pn2 = p2(mu, n)
+    pn3 = p3(mu, n)
+    pnr = pn3 / pn2
+    res = pn2 * (pnr ** (L - k))
+    return 1 - res
+
+def fns(mu, n, s):
+    if n < s:
+        return 0
+    else:
+        res = poisson.pmf(n - s, mu)
+        return res
+
+def Fns(mu, n, s):
+    """
+    Cumulative distribution function helper
+    """
+    if n < s:
+        return 0
+    else:
+        x = n - s
+        res = poisson.cdf(x, mu)
+        return res
+
+def p2(mu, n):
+    """
+    Second order probability calculation
+    """
+    Fn_2 = Fns(mu, n, 1) ** 2
+    p1 = (n - 1) * poisson.pmf(n, mu) * fns(mu, n, 2)
+    p2 = (n - 1 - mu) * poisson.pmf(n, mu)
+    Fn_3 = Fns(mu, n, 3)
+    fin = Fn_2 - p1 - p2 * Fn_3
+    return fin
+
+def p3(mu, n):
+    """
+    Third order probability calculation
+    """
+    Fn_3 = Fns(mu, n, 1) ** 3
+    
+    a1_1 = 2 * poisson.pmf(n, mu) * Fns(mu, n, 1)
+    a1_2 = (n - 1) * Fns(mu, n, 2) - mu * Fns(mu, n, 3)
+    A1 = a1_1 * a1_2
+    
+    a2_1 = 0.5 * poisson.pmf(n, mu) ** 2
+    a2_2 = (n - 1) * (n - 2) * Fns(mu, n, 3) - 2 * (n - 2) * mu * Fns(mu, n, 4)
+    a2_3 = mu ** 2 * Fns(mu, n, 5)
+    A2 = a2_1 * (a2_2 + a2_3)
+    
+    A3 = 0
+    for i in range(1, n):
+        fl3 = fns(mu, 2 * n, i) * Fns(mu, i, 1) ** 2
+        A3 += fl3
+    
+    A4 = 0
+    for i in range(1, n - 1):
+        fl4_1 = fns(mu, 2 * n, i) * poisson.pmf(i, mu)
+        fl4_2 = (i - 1) * Fns(mu, i, 2) - mu * Fns(mu, i, 3)
+        A4 += fl4_1 * fl4_2
+    
+    fin = Fn_3 - A1 + A2 + A3 - A4
+    return fin
