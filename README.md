@@ -35,6 +35,7 @@ See the notebooks folder for example analyses:
  - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
  - [Time Series Charts](./notebooks/TimeSeriesCharts.ipynb)
  - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
+ - [Drone Base Site Selection](./notebooks/DroneSites.ipynb)
  - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
  - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
  - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
@@ -54,7 +55,6 @@ Additional examples in Notebooks and documentation (contributors welcome!)
  - try patrol districting with googles ORtools, see how fast it runs
  - simpler tests for districting
  - Folium example for lines and graduated circles
- - scan statistic (see [this blog post for R implementation](https://andrewpwheeler.com/2023/10/18/fitting-beta-binomial-in-python-poisson-scan-stat-in-r/))
 
 Other additional methods *I may* add (if you want these, let me know):
 

@@ -1,6 +1,10 @@
 '''
 Pmedian for districting
 with workload equality constraints
+
+or
+
+site selection
 '''
 
 
@@ -9,6 +13,10 @@ import networkx as nx
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+from matplotlib.collections import LineCollection
+from matplotlib.colors import to_hex, to_rgb
 import geopandas as gpd
 import pandas as pd
 import osmnx as ox
@@ -193,7 +201,30 @@ def prep_dicts(gdf,id_field,calls_field):
     areas = cr.index.tolist()
     return areas, cont_dict, call_dict
 
-# This returns a distance matrix, 
+
+# This returns the euclidean distance matrix between two matrices
+def get_euclid_distance(d1,d2,limit,d1xy=['x','y'],d2xy=['x','y']):
+    d1n = d1[d1xy].values
+    d2n = d2[d2xy].values
+    # makes the larger matrix the tree and the smaller the search
+    if d1.shape[0] > d2.shape[0]:
+        tree = KDTree(d1n)
+        idx, dis = tree.query_radius(d2n,r=limit,return_distance=True)
+        tdo, tso = 'd1', 'd2'
+    else:
+        tree = KDTree(d2n)
+        idx, dis = tree.query_radius(d1n,r=limit,return_distance=True)
+        tdo, tso = 'd2', 'd1'
+    res_pairs = []
+    for i in range(idx.shape[0]):
+        sl = idx[i]
+        il = np.repeat(i,sl.shape[0])
+        dl = dis[i]
+        res_pairs.append(np.vstack([sl,il,dl]).T)
+    res_pairs = pd.DataFrame(np.concatenate(res_pairs),columns=[tdo,tso,'dist'])
+    return res_pairs[['d1','d2','dist']]
+
+# This returns a network distance matrix for a file against itself
 def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time',prior_df=None):
     # The way the KDtree works, need to always redo that even if you have prior_df
     cr = gdf[[id_field,'geometry']].reset_index(drop=True)
@@ -558,3 +589,225 @@ class pmed():
             # might also change the problem vars
             # remove from ls
             ls.remove(fin_l)
+
+
+class SiteSelection:
+    def __init__(self, crime_locations, site_locations, num_sites, limit_dist=1e9,
+                 problem='minsum'):
+        """
+        Initialize the site selection p-median problem solver.
+        
+        Parameters:
+        crime_locations: dataframe [(x, y, count), ...] where x,y are coordinates and count is crime count
+        site_locations: dataframe [(x, y), ...] where x,y are potential site coordinates
+        num_sites: int, number of sites to select
+        limit_dist: float, limit the distance matrix to within a specified value
+        problem: string, either 'minsum' (default), or 'minmax'. Minsum minimizes the sum of
+                 all the distances, minmax minimizes the maximum travel
+        """
+        self.num_sites = num_sites
+        self.limit_dist = limit_dist
+        self.problem = problem
+        
+        # Create crime dataframe
+        self.crime_df = crime_locations[['x','y','count']].copy()
+        self.crime_df.columns = ['cx', 'cy', 'count']
+        self.crime_df['cid'] = range(len(self.crime_df))
+        
+        # Create site dataframe
+        self.site_df = site_locations[['x','y']].copy()
+        self.site_df.columns = ['dx', 'dy']
+        self.site_df['did'] = range(len(self.site_df))
+        
+        # Create distance matrix
+        self._create_distance_matrix()
+        
+        # Initialize problem variables
+        self.prob = None
+        self.x = None  # site location variables
+        self.y = None  # assignment variables
+        self.z = None  # if minmax, max distance
+        self.solved = False
+        self.solution = None
+        
+    def _create_distance_matrix(self):
+        """Create the distance matrix between all sites and crime locations."""
+        self.dist = get_euclid_distance(self.site_df,self.crime_df,self.limit_dist,
+                                        d1xy=['dx','dy'],d2xy=['cx','cy'])
+        self.dist.columns = ['did','cid','dist']
+        self.dist[['did','cid']] = self.dist[['did','cid']].astype(int)
+        self.dist['count'] = self.crime_df.iloc[self.dist['cid'],2].values
+        self.dist.set_index(['did', 'cid'], inplace=True)
+    
+    def _create_problem(self):
+        """Create the PuLP optimization problem."""
+        # Create the problem
+        self.prob = pulp.LpProblem("P-median", pulp.LpMinimize)
+        
+        # Decision variables
+        # x[i] = 1 if site is placed at location i, 0 otherwise
+        self.x = pulp.LpVariable.dicts("site_location", 
+                                      self.site_df['did'].tolist(), 
+                                      cat='Binary')
+        
+        # y[i,j] = 1 if crime location j is assigned to site at location i, 0 otherwise
+        self.y = pulp.LpVariable.dicts("assignment", 
+                                      [(i, j) for i,j in self.dist.index], 
+                                      cat='Binary')
+        
+        # If minmax, additional z-variable for the max
+        if self.problem == 'minmax':
+            max_distance = self.dist['dist'].max()
+            self.z = pulp.LpVariable("maxdist",0,max_distance)
+            # Objective, minimize max distance -- count does not matter!
+            self.prob += pulp.lpSum(self.z)
+            # Constraint, z is always greater than y*dist
+            for i,j in self.dist.index:
+                self.prob += pulp.lpSum(self.y[(i,j)]*self.dist.loc[(i,j),'dist']) <= self.z
+        else:
+            # Objective function: minimize total weighted distance
+            self.prob += pulp.lpSum([self.crime_df.loc[j, 'count'] * self.dist.loc[(i,j), 'dist'] * self.y[(i,j)] 
+                               for i,j in self.dist.index])
+        
+        # Constraint 1: Select exactly num_sites site locations
+        self.prob += pulp.lpSum([self.x[i] for i in self.site_df['did']]) == self.num_sites
+        
+        # Constraint 2: Each crime location must be assigned to exactly one site
+        for j in self.crime_df['cid']:
+            self.prob += pulp.lpSum([self.y[(i,j)] for i in self.site_df['did'] if (i,j) in self.y]) == 1
+        
+        # Constraint 3: Can only assign to selected site locations
+        for i,j in self.dist.index:
+            self.prob += self.y[(i,j)] <= self.x[i]
+    
+    def solve(self,solver=None):
+        """
+        Solve the p-median problem and return the solution.
+        For solver can either pass in None for default pulp, or various pulp solvers, e.g.
+        solver = pulp.CPLEX()
+        pulp.CPLEX_CMD(msg=True, warmStart=True)
+        solver = pulp.PULP_CBC_CMD(timeLimit=1000)
+        solver = pulp.GLPK_CMD()
+        etc.
+        run print( pulp.listSolvers(onlyAvailable=True) )
+        to see available solvers on your machine
+        
+        Returns:
+        dict: Solution dictionary containing status, objective value, selected sites, and assignments
+        """
+        if self.prob is None:
+            self._create_problem()
+        
+        print(f'Starting to solve function at {datetime.now()}')
+        # Solve the problem
+        if solver == None:
+            self.prob.solve()
+        else:
+            self.prob.solve(solver)
+        self.solved = True
+        print(f'Solve finished at {datetime.now()}')
+        # Extract solution
+        solution = {
+            'status': pulp.LpStatus[self.prob.status],
+            'optimal_value': pulp.value(self.prob.objective),
+            'selected_locations': [],
+            'assignments': []
+        }
+        
+        # Get selected site locations
+        for i in self.site_df['did']:
+            if self.x[i].varValue == 1:
+                solution['selected_locations'].append({
+                    'site_id': i,
+                    'position': (self.site_df.loc[i, 'dx'], self.site_df.loc[i, 'dy'])
+                })
+        
+        # Get crime assignments
+        for i,j in self.dist.index:
+            if self.y[(i,j)].varValue == 1:
+                solution['assignments'].append({
+                         'crime_id': j,
+                        'site_id': i,
+                        'crime_position': (self.crime_df.loc[j, 'cx'], self.crime_df.loc[j, 'cy']),
+                        'site_position': (self.site_df.loc[i, 'dx'], self.site_df.loc[i, 'dy']),
+                        'distance': self.dist.loc[(i,j), 'dist'],
+                        'crime_count': self.crime_df.loc[j, 'count']
+                    })
+        solution['assignments'] = pd.DataFrame(solution['assignments'])
+        
+        self.solution = solution
+    
+    def plot_solution(self, ax=None, figsize=(12, 8),colors=None,size_range=(20,300),lines=True):
+        """
+        Create a visualization of the solution.
+        
+        Parameters:
+        ax: matplotlib axes object (optional, if None will create new figure)
+        figsize: tuple, figure size (default (12, 8)) - only used if ax is None
+        colors: list, custom colors for site-crime pairs (optional)
+        size_mod: float, plots crimes as varying circle sizes, default 20
+        """
+        if not self.solved:
+            raise ValueError("Problem must be solved before plotting. Call solve() first.")
+        
+        # Create figure and axes if not provided
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        
+        # Get selected sites
+        rays = self.solution['assignments'].copy()
+        site_df = rays[['site_id','site_position']].drop_duplicates()
+        selected_sites = site_df['site_id'].tolist()
+        
+        # Define colors for each selected pair
+        if colors is None:
+            # Use a colormap to generate distinct colors
+            color_map = plt.cm.Set1  # or plt.cm.tab10 for more colors
+            color_vals = [color_map(i) for i in range(len(selected_sites))]
+        else:
+            color_vals = [to_rgb(c) for c in colors]
+        
+        color_di = dict(zip(selected_sites,color_vals))
+        rays['colors'] = rays['site_id'].map(color_di)
+        rays[['x','y']] = pd.DataFrame(rays['crime_position'].to_list(),index=rays.index)
+        site_df['colors'] = site_df['site_id'].map(color_di)
+        site_df[['x','y']] = pd.DataFrame(site_df['site_position'].to_list(),index=site_df.index)
+        
+        # Plot lines first
+        if lines:
+            seg = rays[['crime_position','site_position']].values.tolist()
+            lc = LineCollection(seg,colors=rays['colors'])
+            ax.add_collection(lc)
+        
+        # Then plot crimes
+        cmin, cmax = rays['crime_count'].min(), rays['crime_count'].max()
+        cscale = (rays['crime_count'] - cmin)/(cmax-cmin)
+        vmin, vmax = size_range
+        vscale = cscale*(vmax - vmin) + vmin
+        ax.scatter(rays['x'],rays['y'],s=vscale,
+                   c=rays['colors'],edgecolors='k',alpha=0.7)
+        
+        # Then plot the selected site locations
+        ax.scatter(site_df['x'],site_df['y'], 
+                   s=0.75*(vmax-vmin) + vmin, c=site_df['colors'],marker='s', edgecolors='k', linewidth=2)
+        
+        # Create legend, just use grey (does not use for now)
+        #legend_elements = []
+        #legend_elements.append(
+        #        Line2D([0], [0], marker='s', color='w', markerfacecolor='grey',
+        #               markersize=10, markeredgecolor='black', markeredgewidth=1,
+        #               label=f'Selected Site')
+        #    )
+        #legend_elements.append(
+        #        Line2D([0], [0], marker='o', color='w', markerfacecolor='grey',
+        #               markersize=8, markeredgecolor='black', markeredgewidth=1,
+        #               alpha=0.7, label=f'Crimes')
+        #    )
+        
+        # Only call tight_layout and show if we created the figure
+        if ax.figure == plt.gcf():
+            plt.tight_layout()
+            #ax.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
+            plt.show()
+        
+        return ax
