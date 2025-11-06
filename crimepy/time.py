@@ -302,6 +302,7 @@ def seas_chart(data,ax=None,file=None,
     year_list.sort()
     last_year = max(year_list)
     lab_hist = f'{min(year_list)}-{max(year_list)-1}'
+    ax_orig = copy(ax)
     if year_colors:
         loyl = list(set(year_list) - set(year_colors.keys()))
         loyl.sort()
@@ -310,9 +311,6 @@ def seas_chart(data,ax=None,file=None,
         lab_hist = ",".join(loyl)
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
-        ax_orig = copy(ax)
-    else:
-        ax_orig = copy(ax)
     labN = 0
     for y in year_list:
         subd = md[md['Year'] == y]
