@@ -6,7 +6,7 @@ Andrew Wheeler
 
 [Crime De-Coder LLC](https://crimede-coder.com/)
 
-![](/crimepy/CDCWLineRec.PNG)
+![](/crimepy/CrimeDeCoder_Logo_Small.PNG)
 
 ## Installation
 
