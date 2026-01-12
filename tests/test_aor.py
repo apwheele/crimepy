@@ -5,6 +5,14 @@ Test cases for aoristic analysis
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import pytest
+
+from crimepy.aoristic import (
+    weekhour_func_vectorized,
+    agg_weekhour,
+    agg_hour,
+    WEEKDAY_HOUR_INDEX
+)
 
 def create_test_data():
     """
@@ -240,3 +248,331 @@ expected_results = {
 print("\n=== EXPECTED RESULTS FOR VERIFICATION ===")
 for case, expected in expected_results.items():
     print(f"{case}: {expected}")
+
+
+# ============== PYTEST TEST FUNCTIONS ==============
+
+class TestWeekHourFuncVectorized:
+    """Tests for the weekhour_func_vectorized function"""
+
+    def test_same_hour_point(self):
+        """Test case where begin and end are the same time (point in time)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1)],
+            'end': [base_date + timedelta(hours=1)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should have weight 1.0 at Monday hour 1 (index = 0*24 + 1 = 1)
+        expected_idx = WEEKDAY_HOUR_INDEX[(0, 1)]  # Monday, 01:00
+        assert result[0, expected_idx] == 1.0
+        assert result[0].sum() == pytest.approx(1.0)
+        assert np.count_nonzero(result[0]) == 1
+
+    def test_within_same_hour(self):
+        """Test case where begin and end are within the same hour"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1)],
+            'end': [base_date + timedelta(hours=1, minutes=30)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should have weight 1.0 at Monday hour 1
+        expected_idx = WEEKDAY_HOUR_INDEX[(0, 1)]
+        assert result[0, expected_idx] == 1.0
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_cross_hour_boundary(self):
+        """Test case where time spans cross hour boundary"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1)],
+            'end': [base_date + timedelta(hours=2, minutes=30)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should have weights at Monday hours 1 and 2
+        idx_hour1 = WEEKDAY_HOUR_INDEX[(0, 1)]
+        idx_hour2 = WEEKDAY_HOUR_INDEX[(0, 2)]
+
+        assert result[0, idx_hour1] > 0
+        assert result[0, idx_hour2] > 0
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_cross_hour_partial(self):
+        """Test case where time spans partial hours (01:50 to 02:10)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1, minutes=50)],
+            'end': [base_date + timedelta(hours=2, minutes=10)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        idx_hour1 = WEEKDAY_HOUR_INDEX[(0, 1)]
+        idx_hour2 = WEEKDAY_HOUR_INDEX[(0, 2)]
+
+        # 10 minutes in hour 1, 10 minutes in hour 2 -> equal weights
+        assert result[0, idx_hour1] == pytest.approx(0.5, rel=0.01)
+        assert result[0, idx_hour2] == pytest.approx(0.5, rel=0.01)
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_over_one_week(self):
+        """Test case where duration > 1 week gets equal distribution"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=12)],
+            'end': [base_date + timedelta(days=8, hours=12)]  # 8 days
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should distribute evenly across all 168 bins
+        expected_weight = 1.0 / 168
+        assert result[0].sum() == pytest.approx(1.0)
+        assert np.allclose(result[0], expected_weight)
+
+    def test_cross_midnight(self):
+        """Test case crossing midnight boundary"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=23, minutes=30)],
+            'end': [base_date + timedelta(days=1, hours=1, minutes=15)]  # Tuesday 01:15
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should have weights at Monday 23:00, Tuesday 00:00, Tuesday 01:00
+        idx_mon_23 = WEEKDAY_HOUR_INDEX[(0, 23)]
+        idx_tue_00 = WEEKDAY_HOUR_INDEX[(1, 0)]
+        idx_tue_01 = WEEKDAY_HOUR_INDEX[(1, 1)]
+
+        assert result[0, idx_mon_23] > 0
+        assert result[0, idx_tue_00] > 0
+        assert result[0, idx_tue_01] > 0
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_missing_end_time(self):
+        """Test case where end time is missing (should use begin)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=15, minutes=30)],
+            'end': [pd.NaT]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should use begin time, so weight at Monday 15:00
+        expected_idx = WEEKDAY_HOUR_INDEX[(0, 15)]
+        assert result[0, expected_idx] == 1.0
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_missing_begin_time(self):
+        """Test case where begin time is missing (should return zeros)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [pd.NaT],
+            'end': [base_date + timedelta(hours=15, minutes=30)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should have all zeros (invalid row)
+        assert result[0].sum() == 0.0
+
+    def test_swapped_times(self):
+        """Test case where end is before begin (should auto-swap)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=14, minutes=30)],
+            'end': [base_date + timedelta(hours=12, minutes=15)]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        # Should auto-correct and have weights at hours 12, 13, 14
+        idx_hour12 = WEEKDAY_HOUR_INDEX[(0, 12)]
+        idx_hour13 = WEEKDAY_HOUR_INDEX[(0, 13)]
+        idx_hour14 = WEEKDAY_HOUR_INDEX[(0, 14)]
+
+        assert result[0, idx_hour12] > 0
+        assert result[0, idx_hour13] > 0
+        assert result[0, idx_hour14] > 0
+        assert result[0].sum() == pytest.approx(1.0)
+
+    def test_multiple_rows(self):
+        """Test vectorized processing of multiple rows"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=5),
+                base_date + timedelta(hours=10)
+            ],
+            'end': [
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=5),
+                base_date + timedelta(hours=10)
+            ]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        assert result.shape == (3, 168)
+        assert result[0, WEEKDAY_HOUR_INDEX[(0, 1)]] == 1.0
+        assert result[1, WEEKDAY_HOUR_INDEX[(0, 5)]] == 1.0
+        assert result[2, WEEKDAY_HOUR_INDEX[(0, 10)]] == 1.0
+
+
+class TestAggWeekHour:
+    """Tests for the agg_weekhour function"""
+
+    def test_basic_aggregation(self):
+        """Test basic aggregation without grouping"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1), base_date + timedelta(hours=1)],
+            'end': [base_date + timedelta(hours=1), base_date + timedelta(hours=1)]
+        })
+
+        result = agg_weekhour(df, 'begin', 'end')
+
+        assert 'weekday' in result.columns
+        assert 'hour' in result.columns
+        assert 'weight' in result.columns
+        assert len(result) == 168
+        assert result['weight'].sum() == pytest.approx(2.0)  # Two events
+
+        # Check Monday hour 1 has weight 2.0
+        mon_1 = result[(result['weekday'] == 0) & (result['hour'] == 1)]
+        assert mon_1['weight'].values[0] == pytest.approx(2.0)
+
+    def test_grouped_aggregation(self):
+        """Test aggregation with a grouping variable"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=2)
+            ],
+            'end': [
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=1),
+                base_date + timedelta(hours=2)
+            ],
+            'crime_type': ['Burglary', 'Theft', 'Burglary']
+        })
+
+        result = agg_weekhour(df, 'begin', 'end', 'crime_type')
+
+        assert 'crime_type' in result.columns
+        assert len(result) == 168 * 2  # 168 bins x 2 groups
+
+        # Check Burglary group
+        burglary = result[result['crime_type'] == 'Burglary']
+        burglary_hour1 = burglary[(burglary['weekday'] == 0) & (burglary['hour'] == 1)]
+        burglary_hour2 = burglary[(burglary['weekday'] == 0) & (burglary['hour'] == 2)]
+        assert burglary_hour1['weight'].values[0] == pytest.approx(1.0)
+        assert burglary_hour2['weight'].values[0] == pytest.approx(1.0)
+
+        # Check Theft group
+        theft = result[result['crime_type'] == 'Theft']
+        theft_hour1 = theft[(theft['weekday'] == 0) & (theft['hour'] == 1)]
+        assert theft_hour1['weight'].values[0] == pytest.approx(1.0)
+
+
+class TestAggHour:
+    """Tests for the agg_hour function"""
+
+    def test_hour_aggregation(self):
+        """Test aggregation by hour (collapsing weekdays)"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)  # Monday
+        df = pd.DataFrame({
+            'begin': [
+                base_date + timedelta(hours=1),                    # Monday 01:00
+                base_date + timedelta(days=1, hours=1),            # Tuesday 01:00
+                base_date + timedelta(hours=2)                     # Monday 02:00
+            ],
+            'end': [
+                base_date + timedelta(hours=1),
+                base_date + timedelta(days=1, hours=1),
+                base_date + timedelta(hours=2)
+            ]
+        })
+
+        result = agg_hour(df, 'begin', 'end')
+
+        assert 'hour' in result.columns
+        assert 'weight' in result.columns
+        assert len(result) == 24
+
+        # Hour 1 should have weight 2.0 (Monday + Tuesday)
+        hour1 = result[result['hour'] == 1]
+        assert hour1['weight'].values[0] == pytest.approx(2.0)
+
+        # Hour 2 should have weight 1.0
+        hour2 = result[result['hour'] == 2]
+        assert hour2['weight'].values[0] == pytest.approx(1.0)
+
+    def test_hour_aggregation_with_group(self):
+        """Test hour aggregation with grouping"""
+        base_date = datetime(2024, 1, 1, 0, 0, 0)
+        df = pd.DataFrame({
+            'begin': [base_date + timedelta(hours=1), base_date + timedelta(hours=1)],
+            'end': [base_date + timedelta(hours=1), base_date + timedelta(hours=1)],
+            'district': ['North', 'South']
+        })
+
+        result = agg_hour(df, 'begin', 'end', 'district')
+
+        assert 'district' in result.columns
+        assert 'hour' in result.columns
+        assert len(result) == 24 * 2  # 24 hours x 2 districts
+
+
+class TestEdgeCases:
+    """Tests for edge cases and error handling"""
+
+    def test_empty_dataframe(self):
+        """Test with empty DataFrame"""
+        df = pd.DataFrame({'begin': [], 'end': []})
+        df['begin'] = pd.to_datetime(df['begin'])
+        df['end'] = pd.to_datetime(df['end'])
+
+        result = agg_weekhour(df, 'begin', 'end')
+
+        assert len(result) == 168
+        assert result['weight'].sum() == 0.0
+
+    def test_all_missing_data(self):
+        """Test with all missing values"""
+        df = pd.DataFrame({
+            'begin': [pd.NaT, pd.NaT],
+            'end': [pd.NaT, pd.NaT]
+        })
+
+        result = weekhour_func_vectorized(df['begin'], df['end'])
+
+        assert result.sum() == 0.0
+
+    def test_weights_sum_to_one_per_row(self):
+        """Verify that weights sum to 1.0 for each valid row"""
+        test_df = create_test_data()
+
+        result = weekhour_func_vectorized(test_df['begin'], test_df['end'])
+
+        for idx, row in test_df.iterrows():
+            if pd.notna(row['begin']):
+                # Valid rows should sum to approximately 1.0
+                row_sum = result[idx].sum()
+                assert row_sum == pytest.approx(1.0, rel=0.01), \
+                    f"Row {idx} ({row['case']}): weights sum to {row_sum}, expected 1.0"
+            else:
+                # Invalid rows should sum to 0.0
+                assert result[idx].sum() == 0.0

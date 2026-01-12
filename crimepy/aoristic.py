@@ -296,7 +296,7 @@ def weekhour_func_single_row(begin_val, end_val):
 def agg_hour(data,begin,end,group=None):
     res_week = agg_weekhour(data,begin,end,group)
     if group:
-        res_day = res_week.groupby(group + ['hour'],as_index=False)['weight'].sum()
+        res_day = res_week.groupby([group] + ['hour'],as_index=False)['weight'].sum()
     else:
         res_day = res_week.groupby('hour',as_index=False)['weight'].sum()
     return res_day

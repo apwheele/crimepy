@@ -1,7 +1,8 @@
 import setuptools
+from pathlib import Path
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+here = Path(__file__).parent
+long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setuptools.setup(
     name="crimepy",
