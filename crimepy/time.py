@@ -1,8 +1,3 @@
-'''
-Functions to help create
-time series charts
-'''
-
 import pandas as pd
 import numpy as np
 from datetime import timedelta
@@ -292,9 +287,87 @@ def group_consecutive_years(years):
     
     return ranges
 
+
 def seas_chart(data,ax=None,file=None,
                figsize=(10,5),
                leg_kwargs={},year_colors={},title=None,dpi=500,annotate=None):
+    '''
+    Create a seasonal (monthly) line chart from monthly counts.
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        DataFrame containing at least the following columns:
+        - 'Month' : datetime-like (e.g., Timestamp for the first day of each month).
+                    The function extracts year (.dt.year) and month number (.dt.month)
+                    from this column.
+        - 'Counts': numeric, count of events for the corresponding month.
+    ax : matplotlib.axes.Axes or None, optional
+        Axes on which to draw the chart. If None, a new figure and axes are created.
+        Default is None.
+    file : str or None, optional
+        Controls output behavior:
+        - None (default): show the figure interactively via plt.show() and return None.
+        - 'return'        : return the drawing objects instead of showing/saving.
+                           If an external ax was provided, returns that ax; if ax was None,
+                           returns (fig, ax).
+        - any other string : treated as a filepath; the figure is saved to this path
+                             with the provided dpi and then the figure is cleared; function returns None.
+    figsize : tuple, optional
+        Figure size (width, height) used when creating a new figure. Default (10, 5).
+    leg_kwargs : dict, optional
+        Keyword arguments forwarded to ax.legend(...) when building the legend.
+        Default is {}.
+    year_colors : dict, optional
+        Mapping of int year -> color (any Matplotlib-compatible color spec). Years present
+        in this mapping are plotted using their specified color. Years not in the mapping
+        are plotted in grey (historical) except for the latest year which is plotted in orange.
+        Default is {}.
+    title : str or None, optional
+        Title text to set on the axes. If None or empty string, title is not changed.
+        Default is None.
+    dpi : int, optional
+        Resolution (dots per inch) used when saving the figure to file. Default is 500.
+    annotate : str or None, optional
+        Text to annotate onto the axes at a fixed position. If None or empty string,
+        no annotation is added. Default is None.
+    Behavior / Notes
+    ----------------
+    - The function computes:
+        - md['Year'] = md['Month'].dt.year
+        - md['MonthN'] = md['Month'].dt.month
+      and plots monthly counts (1..12) for each year present in the data.
+    - Years prior to the most recent year are plotted in grey (historical). The most recent
+      year is highlighted in orange with a thicker line and a large marker on its final month.
+    - If year_colors includes keys for some years they will be plotted using those colors
+      and included individually in the legend. Remaining historical years are grouped;
+      group labels are formed by contiguous year ranges (e.g., "2015-2017,2019-2021").
+    - X-axis ticks are set to integers 1..12 (months).
+    - The function calls combo_legend(ax, sort=True) to build and order legend entries;
+      leg_kwargs are passed to ax.legend to control legend appearance.
+    - If file is a path, the figure is saved with plt.savefig(file, dpi=dpi, bbox_inches='tight')
+      and then plt.clf() is called (no return). If file is 'return', the axes/figure are returned
+      as described above. If file is None, plt.show() is called and the function returns None.
+    Returns
+    -------
+    None
+        If file is None (interactive show) or file is a filepath (saved to disk).
+    matplotlib.axes.Axes
+        If file == 'return' and an external ax was passed in, that ax is returned.
+    (tuple(matplotlib.figure.Figure, matplotlib.axes.Axes))
+        If file == 'return' and ax was None (the function created a new figure), returns (fig, ax).
+    Raises
+    ------
+    KeyError
+        If required columns 'Month' or 'Counts' are missing from data.
+    TypeError / AttributeError
+        If 'Month' is not datetime-like such that .dt.year / .dt.month can be accessed.
+    Examples
+    --------
+    >>> # Given a DataFrame `df` with 'Month' (datetime) and 'Counts'
+    >>> seas_chart(df, file='return')            # returns (fig, ax) and does not show/save
+    >>> seas_chart(df, ax=existing_ax)           # draws on existing axes and shows the plot
+    >>> seas_chart(df, file='seasonal.png', dpi=300)  # saves to file and returns None
+    '''
     md = data.copy()
     md['Year'] = md['Month'].dt.year
     md['MonthN'] = md['Month'].dt.month
