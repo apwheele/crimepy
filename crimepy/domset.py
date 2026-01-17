@@ -14,6 +14,16 @@ import ipycytoscape
 # for adding nodes
 
 def add_nodes(G,data,idv='Id'):
+    """
+    Add nodes from a DataFrame to a NetworkX graph with attributes.
+
+    G : networkx.Graph
+        Graph to add nodes to
+    data : pandas.DataFrame
+        DataFrame containing node data
+    idv : str, default 'Id'
+        Column name to use as node identifier
+    """
     lv = list(data.set_index(idv).to_dict(orient='index').items())
     G.add_nodes_from(lv)
 
@@ -37,6 +47,20 @@ dlab = {'Called In': {'node_color': 'red',
 
 # Function to color based on called in
 def color(G,called_in,pos,lab=dlab,ax=None):
+    """
+    Draw a NetworkX graph with nodes colored by dominating set status.
+
+    G : networkx.Graph
+        Graph to visualize
+    called_in : list
+        List of node IDs in the dominating set
+    pos : dict
+        Dictionary of node positions for layout
+    lab : dict, default dlab
+        Dictionary with styling for 'Called In', 'Reached', and 'Left Over' nodes
+    ax : matplotlib.axes.Axes, optional
+        Axes to draw on. If None, uses current axes.
+    """
     # Figure out the reached
     reached = []
     for c in called_in:
@@ -51,6 +75,21 @@ def color(G,called_in,pos,lab=dlab,ax=None):
 #Function needs to distinguish among ties by decreases in set
 #First one with the max new set wins
 def DegTieBreak(G,neighSet,nbunch):
+    """
+    Break ties among nodes with equal degree by selecting the one that adds the most new neighbors.
+
+    G : networkx.Graph
+        Graph to analyze
+    neighSet : set
+        Set of already reached neighbor nodes
+    nbunch : list
+        List of candidate nodes with tied degree
+
+    Returns
+    -------
+    list
+        [selected_node, neighbors_of_selected, new_neighbors_added]
+    """
     maxN = -1
     for i in nbunch:
         neigh_cur = set(G[i].keys())
@@ -63,6 +102,19 @@ def DegTieBreak(G,neighSet,nbunch):
 
 
 def MaxDegSub(G,onlyLook):
+    """
+    Find nodes with maximum degree centrality from a restricted subset.
+
+    G : networkx.Graph
+        Graph to analyze
+    onlyLook : list or set
+        Subset of nodes to consider
+
+    Returns
+    -------
+    list
+        List of node IDs with the maximum degree centrality
+    """
     vals = nx.degree_centrality(G).items()
     #strip items that are not in onlyLook
     valsSub = [i for i in vals if i[0] in onlyLook]
@@ -75,6 +127,25 @@ def MaxDegSub(G,onlyLook):
 #only need to update subfunctions MaxDeg, just supply onlyLook with a list
 #returns in the best order again
 def domSet_WheSub(G,onlyLook,total=None):
+    """
+    Find a dominating set using a greedy algorithm with a restricted candidate set.
+
+    Uses Wheeler's greedy algorithm to find an approximate minimum dominating set,
+    but only considers nodes in onlyLook as potential dominators. Useful when only
+    certain nodes (e.g., those under supervision) can be selected.
+
+    G : networkx.Graph
+        Graph to find dominating set for
+    onlyLook : list or set
+        Restricted set of nodes that can be selected for the dominating set
+    total : int, optional
+        Maximum number of iterations. If None, uses len(onlyLook).
+
+    Returns
+    -------
+    list
+        Ordered list of nodes forming the dominating set
+    """
     uG = G.copy() #make a deepcopy of the orig graph to update for the algorithm
     domSet = []      #list to place dominant set
     neighSet = set([])    #list of neighbors to dominating set   
@@ -121,6 +192,21 @@ def domSet_WheSub(G,onlyLook,total=None):
 
 #alternate where pruning nodes that have the most remainder in the graph instead of choosing by maximum degree
 def domSet_Whe2(G):
+    """
+    Find a dominating set using an alternate greedy algorithm.
+
+    Unlike domSet_WheSub, this version selects nodes based on the maximum
+    number of new neighbors added rather than degree centrality. All nodes
+    in the graph are candidates.
+
+    G : networkx.Graph
+        Graph to find dominating set for
+
+    Returns
+    -------
+    list
+        Ordered list of nodes forming the dominating set
+    """
     uG = G.copy() #make a deepcopy of the orig graph to update for the algorithm
     domSet = []      #list to place dominant set
     neighSet = set([])    #list of neighbors to dominating set   
@@ -190,6 +276,23 @@ call_in_style = [
 
 # This is for ipycytoscape
 def color_cytoscape(G,called_in,styles=call_in_style,layout='cose'):
+    """
+    Create an interactive Cytoscape widget with nodes colored by dominating set status.
+
+    G : networkx.Graph
+        Graph to visualize
+    called_in : list
+        List of node IDs in the dominating set
+    styles : list, default call_in_style
+        List of style dictionaries for ipycytoscape
+    layout : str, default 'cose'
+        Layout algorithm name for ipycytoscape
+
+    Returns
+    -------
+    ipycytoscape.CytoscapeWidget
+        Interactive widget for Jupyter notebooks
+    """
     # Figure out the reached
     reached = []
     for c in called_in:

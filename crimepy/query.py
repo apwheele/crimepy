@@ -17,12 +17,42 @@ import re
 
 # This grabs CSV file from web apps
 def get_csv(url,verify=True):
+    """
+    Download a CSV file from a URL and return as a DataFrame.
+
+    url : str
+        URL to download CSV from
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing the CSV data
+    """
     res_csv = requests.get(url,verify=verify)
     res_pd = pd.read_csv(StringIO(res_csv.text),low_memory=False)
     return res_pd
 
 # Reads a dataframe from local or CSV
 def read_data(file,verify=True,filetype=None):
+    """
+    Read data from a local file or URL into a DataFrame.
+
+    Supports CSV, Excel (.xlsx, .xls, .xlsb), and zip files.
+
+    file : str
+        File path or URL to read from
+    verify : bool, default True
+        Whether to verify SSL certificates for URLs
+    filetype : str, optional
+        File extension to use. If None, inferred from file path.
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        DataFrame containing the data, or None if file is empty/unreadable
+    """
     if filetype is None:
         fe = os.path.splitext(file)[-1]
     else:
@@ -54,6 +84,25 @@ def read_data(file,verify=True,filetype=None):
 
 # caches file locally if downloaded from URL
 def cache(url,file,exist_only=False,verify=True,filetype=None):
+    """
+    Download data from URL and cache locally, or load from cache if exists.
+
+    url : str
+        URL to download from
+    file : str
+        Local file path to cache to
+    exist_only : bool, default False
+        If True, only return data if cache exists (don't download)
+    verify : bool, default True
+        Whether to verify SSL certificates
+    filetype : str, optional
+        File extension to use for reading
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        DataFrame containing the data, or None if exist_only and cache doesn't exist
+    """
     res = None
     if os.path.exists(file):
         res = read_data(file,verify)
@@ -66,6 +115,25 @@ def cache(url,file,exist_only=False,verify=True,filetype=None):
 
 
 def cache_query(file, func, query_kwargs,exist_only=False,verify=True):
+    """
+    Execute a query function and cache results, or load from cache if exists.
+
+    file : str
+        Local file path to cache to
+    func : callable
+        Function to call for fetching data
+    query_kwargs : dict
+        Keyword arguments to pass to func
+    exist_only : bool, default False
+        If True, only return data if cache exists (don't query)
+    verify : bool, default True
+        Whether to verify SSL certificates when reading cache
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        DataFrame containing the data, or None if exist_only and cache doesn't exist
+    """
     res = None
     if os.path.exists(file):
         res = read_data(file,verify)
@@ -78,6 +146,19 @@ def cache_query(file, func, query_kwargs,exist_only=False,verify=True):
 
 
 def head_check(file, url):
+    """
+    Check if a URL has been modified since the last cached timestamp.
+
+    file : str
+        Local file containing the stored Last-Modified timestamp
+    url : str
+        URL to check for modifications
+
+    Returns
+    -------
+    tuple
+        (is_same, new_modified_time, old_modified_time)
+    """
     rh = requests.head(url)
     last_modified = rh.headers['Last-Modified']
     with open(file, "r") as f:
@@ -86,10 +167,33 @@ def head_check(file, url):
     return check, last_modified, old_modified
 
 def over_modified(file,text):
+    """
+    Overwrite a file with the given text (typically a Last-Modified timestamp).
+
+    file : str
+        File path to write to
+    text : str
+        Text content to write
+    """
     with open(file,"w") as f:
         f.write(text)
 
 def get_files(url,extensions,verify=True):
+    """
+    Scrape a webpage and return URLs of files matching specified extensions.
+
+    url : str
+        URL of the webpage to scrape
+    extensions : list
+        List of file extensions to match (e.g., ['.csv', '.xlsx'])
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    list
+        List of absolute URLs to matching files
+    """
     res = requests.get(url,verify=verify)
     soup = bs(res.text,'lxml')
     href = soup.find_all("a")
@@ -103,10 +207,29 @@ def get_files(url,extensions,verify=True):
 
 # ESRIs time unit
 def esri_time(field,offset=-5*60*60):
+    """
+    Convert ESRI timestamp (milliseconds since epoch) to datetime.
+
+    field : pandas.Series
+        Series containing ESRI timestamps
+    offset : int, default -5*60*60
+        Timezone offset in seconds (default is EST)
+
+    Returns
+    -------
+    pandas.Series
+        Series of datetime values
+    """
     fl = pd.to_numeric(field,errors='coerce')
     return pd.to_datetime(fl/1000 + offset,errors='coerce',unit='s')
 
 def rev_esri(offset=-5*60*60):
+    """
+    Convert datetime back to ESRI timestamp format (not yet implemented).
+
+    offset : int, default -5*60*60
+        Timezone offset in seconds (default is EST)
+    """
     pass
 
 # Querying ESRI API
@@ -116,6 +239,29 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
                limitSize=None,
                gpd_query=False,
                verify=True):
+    """
+    Query data from an ESRI ArcGIS REST API endpoint.
+
+    Handles pagination automatically for large datasets.
+
+    base : str
+        Base URL for the ESRI query endpoint
+    params : dict, default {'outFields':"*",'where':"1=1"}
+        Query parameters to pass to the API
+    verbose : bool, default False
+        Whether to print progress messages
+    limitSize : int, optional
+        Limit the number of records returned per query
+    gpd_query : bool, default False
+        If True, use geopandas to read the file directly
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    geopandas.GeoDataFrame or pandas.DataFrame
+        GeoDataFrame if geojson format, DataFrame if json format
+    """
     if verbose:
         print(f'Starting Queries @ {datetime.now()}')
     req = requests
@@ -209,6 +355,21 @@ def query_esri(base='https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/se
 
 # newer Socrata does not have a limit
 def query_socrata(base,add_params,verify=True):
+    """
+    Query data from a Socrata open data API endpoint.
+
+    base : str
+        Base URL for the Socrata endpoint
+    add_params : str
+        Additional query parameters to append to URL
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    geopandas.GeoDataFrame or pandas.DataFrame
+        GeoDataFrame if geojson format, DataFrame otherwise
+    """
     # Get the total number of items to query
     tot_query = base + add_params + "&$group=&$select=count(*)%20AS%20tot"
     #print(tot_query)
@@ -229,6 +390,23 @@ def query_socrata(base,add_params,verify=True):
 
 # TODO
 def query_socrata_page(base,add_params,page_limit=1000,verify=True):
+    """
+    Query data from a Socrata API with pagination support (not yet fully implemented).
+
+    base : str
+        Base URL for the Socrata endpoint
+    add_params : str
+        Additional query parameters to append to URL
+    page_limit : int, default 1000
+        Number of records per page (not currently used)
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    geopandas.GeoDataFrame or pandas.DataFrame
+        GeoDataFrame if geojson format, DataFrame otherwise
+    """
     # Get the total number of items to query
     tot_query = base + add_params + "&$group=&$select=count(*)%20AS%20tot"
     #print(tot_query)
@@ -252,15 +430,56 @@ cary_base = ('https://data.townofcary.org/api/explore/v2.1/catalog/datasets'
              '&use_labels=true&delimiter=%2C')
 
 def query_opendata(base=cary_base,add_params='&where=year=2024'):
+    """
+    Query data from an open data portal CSV export endpoint.
+
+    base : str, default cary_base
+        Base URL for the export endpoint
+    add_params : str, default '&where=year=2024'
+        Additional query parameters to append
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing the queried data
+    """
     # base should be the export endpoint
     return get_csv(base + add_params)
 
 def query_opendata_geo(base,verify=True):
+    """
+    Query geographic data from an open data portal.
+
+    base : str
+        URL for the geographic data endpoint
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        GeoDataFrame containing the geographic data
+    """
     res = requests.get(base,verify=verify)
     areas = gpd.read_file(StringIO(res.text))
     return areas
 
 def phoenix_query(offset=0,limit=30000,verify=True):
+    """
+    Query crime data from Phoenix Open Data API.
+
+    offset : int, default 0
+        Starting record offset for pagination
+    limit : int, default 30000
+        Maximum number of records to return
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing Phoenix crime data
+    """
     url = 'https://www.phoenixopendata.com/api/3/action/datastore_search'
     data = {'resource_id': '0ce3411a-2fc6-4302-a33f-167f68608a20',
             'limit': str(limit),
@@ -273,6 +492,17 @@ def phoenix_query(offset=0,limit=30000,verify=True):
     return df
 
 def phoenix_max(verify=True):
+    """
+    Get the total number of records available in Phoenix Open Data crime dataset.
+
+    verify : bool, default True
+        Whether to verify SSL certificates
+
+    Returns
+    -------
+    int
+        Total number of records in the dataset
+    """
     url = 'https://www.phoenixopendata.com/api/3/action/datastore_search'
     data = {'resource_id': '0ce3411a-2fc6-4302-a33f-167f68608a20',
             'limit': '1',

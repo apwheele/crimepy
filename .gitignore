@@ -5,3 +5,8 @@ notebooks/cache/*
 notebooks/*.zip
 !notebooks/network_data.csv.zip
 notebooks/*.png
+
+# I will include Claude stuff except for this
+# which relies on local files
+.mcp.json
+./claude/commands/read-ptools.md

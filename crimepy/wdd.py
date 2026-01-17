@@ -359,6 +359,21 @@ def scanw(L, k, mu, n):
     return 1 - res
 
 def fns(mu, n, s):
+    """
+    Probability mass function helper for scan statistic.
+
+    mu : float
+        Poisson mean parameter
+    n : int
+        Count value
+    s : int
+        Shift parameter
+
+    Returns
+    -------
+    float
+        Poisson PMF at (n - s) if n >= s, else 0
+    """
     if n < s:
         return 0
     else:

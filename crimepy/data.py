@@ -59,8 +59,16 @@ def load_dallas_data():
 
 
 def load_dallas_border():
+    """
+    Load the Dallas city boundary shapefile included with the package.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        GeoDataFrame containing the Dallas city boundary polygon
+    """
     data_path = importlib_resources.files('crimepy').joinpath('Dallas_MainArea_Proj.zip')
-    
+
     # read the zipped csv file
     with data_path.open('rb') as f:
         dall_outline = gpd.read_file(f)

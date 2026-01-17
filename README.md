@@ -6,7 +6,7 @@ Andrew Wheeler
 
 [Crime De-Coder LLC](https://crimede-coder.com/)
 
-![](https://crimede-coder.com/images/CrimeDeCoder_Logo_Small.PNG)
+![](./images/PirateFlag.png)
 
 ## Installation
 
@@ -40,6 +40,7 @@ See the notebooks folder for example analyses:
  - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
  - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
  - [Weighted Displacement Difference to See Changes over Time](./notebooks/WDD_Examples.ipynb)
+ - [Analysis of Vandalism in Dallas (generated using Claude Code + Skills)](./notebooks/VandalismAnalysis.ipynb)
 
 ## ToDo
 

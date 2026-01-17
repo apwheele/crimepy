@@ -3,6 +3,13 @@ Plot helper
 functions
 '''
 
+import warnings
+import logging
+
+# Suppress matplotlib font warnings
+warnings.filterwarnings('ignore', message='.*findfont.*')
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import imread
@@ -122,6 +129,18 @@ matplotlib.rcParams.update(andy_theme)
 im = imread(importlib_resources.files('crimepy').joinpath('CDCWLineRec.PNG'))
 
 def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
+    """
+    Add a logo image to a matplotlib axes.
+
+    ax : matplotlib.axes.Axes
+        Axes to add the logo to
+    loc : list, default [0.78, 0.78]
+        [x, y] position in axes fraction (0-1). None to skip adding.
+    size : float, default 0.2
+        Size of logo as fraction of axes width
+    logo : str or ndarray, default im
+        Logo image path or image array
+    """
     if loc is None:
         return None
     if type(logo) == str:
@@ -142,6 +161,19 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
 
 # combining legend
 def combo_legend(ax,sort=False):
+    """
+    Combine duplicate legend entries into single items with grouped handles.
+
+    ax : matplotlib.axes.Axes
+        Axes with legend entries to combine
+    sort : bool, default False
+        Whether to sort legend labels alphabetically
+
+    Returns
+    -------
+    tuple
+        (list of handle tuples, list of unique labels)
+    """
     handler, labeler = ax.get_legend_handles_labels()
     hd = []
     labli = list(set(labeler))
@@ -157,6 +189,19 @@ def combo_legend(ax,sort=False):
 
 # check colors
 def check_colors(logo=False,show=False):
+    """
+    Display a bar chart showing all theme colors with hex codes.
+
+    logo : bool, default False
+        Whether to add the CrimeDeCoder logo
+    show : bool, default False
+        Whether to show the plot. If False, returns axes.
+
+    Returns
+    -------
+    matplotlib.axes.Axes or None
+        Axes object if show=False, None otherwise
+    """
     lc = len(colors)
     x = range(lc)
     y = [1]*lc
@@ -177,6 +222,17 @@ def check_colors(logo=False,show=False):
 
 # Brownian motion
 def traj(n):
+    """
+    Generate a random walk trajectory for demo plots.
+
+    n : int
+        Number of points in the trajectory
+
+    Returns
+    -------
+    list
+        List of cumulative random walk values
+    """
     pv = np.random.random() - 0.5
     res = [pv]
     for i in range(n-1):
@@ -187,6 +243,21 @@ def traj(n):
 
 
 def check_line(n=20,show=False,**kwargs):
+    """
+    Display a line chart showing all theme colors with random walk data.
+
+    n : int, default 20
+        Number of points per line
+    show : bool, default False
+        Whether to show the plot. If False, returns axes.
+    **kwargs : dict
+        Additional arguments passed to ax.plot
+
+    Returns
+    -------
+    matplotlib.axes.Axes or None
+        Axes object if show=False, None otherwise
+    """
     lc = len(colors)
     x = range(n)
     cy = andy_cycler()

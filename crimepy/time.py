@@ -171,6 +171,35 @@ def month_chart(data,ax=None,file=None,
                 dpi=500,
                 annotate=None,
                 markersize=None):
+    """
+    Create a monthly counts line chart.
+
+    data : pandas.DataFrame
+        DataFrame with 'Month' and 'Counts' columns
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. If None, creates new figure.
+    file : str or None, default None
+        None to show plot, 'return' to return axes/figure, else filepath to save
+    line_kwargs : dict
+        Keyword arguments for the line plot
+    figsize : tuple, default (10, 5)
+        Figure size if creating new figure
+    title : str, optional
+        Plot title
+    dpi : int, default 500
+        Resolution for saved figure
+    annotate : str, optional
+        Annotation text to add below the plot
+    markersize : float, optional
+        Size of markers (deprecated, use line_kwargs)
+
+    Returns
+    -------
+    tuple or matplotlib.axes.Axes or None
+        (fig, ax) if file='return' and ax was None,
+        ax if file='return' and ax provided,
+        None otherwise
+    """
     ax_orig = copy(ax)
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
@@ -205,6 +234,38 @@ def week_chart(data,ax=None,file=None,max_weeks=52*3,
                figsize=(12,4),
                title=None,
                legend_loc=(0.005, 0.02),legend_kwargs={'prop':{'size':11}},dpi=500,annotate=None):
+    """
+    Create a weekly counts chart with rolling mean and confidence bands.
+
+    data : pandas.DataFrame
+        DataFrame from weekly_data() with 'Week', 'Counts', 'PriorMean',
+        'Low', 'High' columns
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. If None, creates new figure.
+    file : str or None, default None
+        None to show plot, 'return' to return axes/figure, else filepath to save
+    max_weeks : int, default 156 (3 years)
+        Maximum number of weeks to display from the end
+    figsize : tuple, default (12, 4)
+        Figure size if creating new figure
+    title : str, optional
+        Plot title
+    legend_loc : tuple, default (0.005, 0.02)
+        Legend location in axes coordinates
+    legend_kwargs : dict
+        Keyword arguments for legend
+    dpi : int, default 500
+        Resolution for saved figure
+    annotate : str, optional
+        Annotation text to add below the plot
+
+    Returns
+    -------
+    tuple or matplotlib.axes.Axes or None
+        (fig, ax) if file='return' and ax was None,
+        ax if file='return' and ax provided,
+        None otherwise
+    """
     # get rid of missing data
     md = data[~data['PriorMean'].isna()].copy()
     if max_weeks > -1:

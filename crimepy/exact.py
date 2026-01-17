@@ -147,3 +147,122 @@ def composition(n, m):
         return compositions(n, m)
 
 
+def gtest(v, p=None):
+    """
+    Likelihood ratio G test for goodness of fit.
+
+    Calculates the G statistic for testing whether observed counts
+    deviate significantly from expected probabilities. This is useful
+    for small sample goodness-of-fit testing, such as day-of-week
+    analysis or Benford's Law tests.
+
+    Parameters:
+    -----------
+    v : array-like
+        Vector of observed counts in each bin
+    p : array-like, optional
+        Vector of baseline probabilities. Defaults to equal
+        probability across all bins (1/len(v))
+
+    Returns:
+    --------
+    float
+        The G test statistic (likelihood ratio statistic)
+
+    Examples:
+    ---------
+    >>> # Test if crimes are uniformly distributed across 7 days
+    >>> observed = [10, 12, 8, 15, 9, 20, 18]
+    >>> g_stat = gtest(observed)
+
+    >>> # Test against specific expected probabilities
+    >>> observed = [10, 12, 8, 15, 9, 20, 18]
+    >>> expected_p = [0.1, 0.1, 0.1, 0.2, 0.1, 0.2, 0.2]
+    >>> g_stat = gtest(observed, expected_p)
+
+    References:
+    -----------
+    Translated from ptools R package (Wheeler)
+    https://github.com/apwheele/ptools
+    """
+    v = np.asarray(v, dtype=float)
+    if p is None:
+        p = np.ones(len(v)) / len(v)
+    else:
+        p = np.asarray(p, dtype=float)
+
+    e = np.sum(v) * p  # expected values
+    # r = log(v/e) where v>0 and e>0, else 0
+    mask = (v > 0) & (e > 0)
+    r = np.zeros_like(v)
+    r[mask] = np.log(v[mask] / e[mask])
+    g = 2 * np.sum(v * r)
+    return g
+
+
+def kuiper_test(v, p=None):
+    """
+    Kuiper's V test statistic for goodness of fit.
+
+    Calculates the Kuiper V statistic for testing whether observed counts
+    deviate significantly from expected probabilities. This test is particularly
+    useful for circular data (e.g., day-of-week patterns) as it is invariant
+    to the starting point of the cycle.
+
+    Parameters:
+    -----------
+    v : array-like
+        Vector of observed counts in each bin
+    p : array-like, optional
+        Vector of baseline probabilities. Defaults to equal
+        probability across all bins (1/len(v))
+
+    Returns:
+    --------
+    float
+        The Kuiper V test statistic
+
+    Examples:
+    ---------
+    >>> # Test if crimes are uniformly distributed across 7 days
+    >>> observed = [3, 1, 1, 0, 0, 1, 1]
+    >>> v_stat = kuiper_test(observed)
+
+    >>> # Test against specific expected probabilities
+    >>> observed = [3, 1, 1, 0, 0, 1, 1]
+    >>> expected_p = [1/7] * 7
+    >>> v_stat = kuiper_test(observed, expected_p)
+
+    Notes:
+    ------
+    The V statistic is calculated as:
+        V = (D+ + Dm) * (sqrt(n) + 0.155 + 0.24/sqrt(n))
+
+    where D+ is the maximum positive deviation of the empirical CDF
+    from the expected CDF, Dm is the maximum proportion in any bin,
+    and n is the total count.
+
+    References:
+    -----------
+    Wheeler, A. P. (2016). Testing Serial Crime Events for Randomness
+    in Day-of-Week Patterns with Small Samples. Journal of Investigative
+    Psychology and Offender Profiling, 13(2), 148-165.
+
+    Translated from ptools R package (Wheeler)
+    https://github.com/apwheele/ptools
+    """
+    v = np.asarray(v, dtype=float)
+    if p is None:
+        p = np.ones(len(v)) / len(v)
+    else:
+        p = np.asarray(p, dtype=float)
+
+    n = np.sum(v)
+    u = np.cumsum(p)       # expected CDF
+    s = v / n              # proportions
+    e = np.cumsum(s)       # empirical CDF
+    Dp = np.max(e - u)     # max positive deviation
+    Dm = np.max(s)         # max proportion in any bin
+    sq_n = np.sqrt(n)
+    V = (Dp + Dm) * (sq_n + 0.155 + 0.24 / sq_n)
+    return V

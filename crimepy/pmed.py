@@ -204,6 +204,25 @@ def prep_dicts(gdf,id_field,calls_field):
 
 # This returns the euclidean distance matrix between two matrices
 def get_euclid_distance(d1,d2,limit,d1xy=['x','y'],d2xy=['x','y']):
+    """
+    Calculate pairwise Euclidean distances between two sets of points using KD-tree.
+
+    d1 : pandas.DataFrame
+        First DataFrame with coordinate columns
+    d2 : pandas.DataFrame
+        Second DataFrame with coordinate columns
+    limit : float
+        Maximum distance threshold; only pairs within this distance are returned
+    d1xy : list, default ['x','y']
+        Column names for x,y coordinates in d1
+    d2xy : list, default ['x','y']
+        Column names for x,y coordinates in d2
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns ['d1','d2','dist'] containing index pairs and distances
+    """
     d1n = d1[d1xy].values
     d2n = d2[d2xy].values
     # makes the larger matrix the tree and the smaller the search
@@ -226,6 +245,31 @@ def get_euclid_distance(d1,d2,limit,d1xy=['x','y'],d2xy=['x','y']):
 
 # This returns a network distance matrix for a file against itself
 def get_distance(gdf,id_field,limit,buffer_distance,distance_type='travel_time',prior_df=None):
+    """
+    Calculate network distances between area centroids using OpenStreetMap.
+
+    Computes shortest path distances (or travel times) between all pairs of
+    polygon centroids within a distance threshold. Uses linear regression
+    to impute missing network distances based on Euclidean distance.
+
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame with polygons (should be in a projected CRS)
+    id_field : str
+        Column name for unique area identifier
+    limit : float
+        Maximum Euclidean distance to compute network distance for
+    buffer_distance : float
+        Buffer around polygon boundaries for downloading street network
+    distance_type : str, default 'travel_time'
+        Either 'travel_time' (minutes) or 'travel_distance' (meters)
+    prior_df : pandas.DataFrame, optional
+        Previously computed distances to reuse; new pairs appended
+
+    Returns
+    -------
+    pandas.DataFrame
+        Distance matrix with columns including 'ID1', 'ID2', 'imputed_distance'
+    """
     # The way the KDtree works, need to always redo that even if you have prior_df
     cr = gdf[[id_field,'geometry']].reset_index(drop=True)
     # should do an error if in epsg:4326
@@ -354,10 +398,28 @@ class pmed():
         self.Di = res_di # this expects the full distance matrix
         # not running create problem, as you may need to modify some of these data elements
     def modify_cont(self,pairs):
+        """
+        Add additional contiguity connections between areas.
+
+        pairs : list of tuples
+            List of (area_id1, area_id2) pairs to add as neighbors
+        """
         for a,b in pairs:
             self.Co[a].append(b)
             self.Co[b].append(a)
+
     def create_problem(self):
+        """
+        Build the PuLP optimization problem with all constraints.
+
+        Creates decision variables, objective function, and constraints for:
+        - Total number of districts
+        - Workload inequality bounds
+        - Contiguity requirements
+        - Assignment coverage
+
+        Sets self.model with the complete PuLP problem ready to solve.
+        """
         # Assigning initial properties of object
         Ar = self.Ar
         Di = self.Di
@@ -433,7 +495,15 @@ class pmed():
         av_solv = pulp.listSolvers(onlyAvailable=True)
         print(f'Available solvers from pulp, {av_solv}')
     def write_lp(self,filename,**kwargs):
-        self.model.writeLP(filname,**kwargs)
+        """
+        Write the model to an LP file format.
+
+        filename : str
+            Output file path
+        **kwargs : dict
+            Additional arguments passed to writeLP
+        """
+        self.model.writeLP(filename,**kwargs)
     def solve(self,solver=None):
         """
         For solver can either pass in None for default pulp, or various pulp solvers, e.g.
@@ -482,6 +552,21 @@ class pmed():
         except:
             print('Unable to append results')
     def map_plot(self,savefile=None,show=False,ax=None):
+        """
+        Plot the districting solution on a map.
+
+        savefile : str, optional
+            File path to save the figure
+        show : bool, default False
+            Whether to display the plot
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+
+        Returns
+        -------
+        matplotlib.axes.Axes or None
+            Axes object if show=False and savefile=None
+        """
         geo_map = self.gdf
         id_str = self.id_field
         # Merging in data into geoobject
@@ -507,7 +592,19 @@ class pmed():
         else:
             plt.show()
     def collect_subtours(self):
-        subtours = [] 
+        """
+        Find and add constraints for non-contiguous district subtours.
+
+        Identifies disconnected components in each district and adds
+        subtour elimination constraints to the model.
+
+        Returns
+        -------
+        int
+            1 if no subtours found, 0 if subtours have zero calls (can be reassigned),
+            -1 if subtours found and constraints added
+        """
+        subtours = []
         areas = pd.unique(self.pairs['Source']).tolist()
         for a in areas:
             a0 = self.pairs['Source'] == a
@@ -555,6 +652,12 @@ class pmed():
             print('No subtours found, your solution appears OK')
             return 1
     def clean_zero(self):
+        """
+        Reassign disconnected areas with zero calls to neighboring districts.
+
+        For subtours containing only zero-call areas, assigns them to adjacent
+        districts based on shared border length. Updates self.pairs in place.
+        """
         ls = []
         for s,d in self.last_subtour:
             ls += d

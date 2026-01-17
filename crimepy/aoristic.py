@@ -294,6 +294,23 @@ def weekhour_func_single_row(begin_val, end_val):
 
 
 def agg_hour(data,begin,end,group=None):
+    """
+    Aggregate aoristic weights by hour only (ignoring weekday).
+
+    data : pandas.DataFrame
+        DataFrame with datetime columns
+    begin : str
+        Column name for begin datetime
+    end : str
+        Column name for end datetime
+    group : str or list, optional
+        Grouping column(s)
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with hour and aggregated weights
+    """
     res_week = agg_weekhour(data,begin,end,group)
     if group:
         res_day = res_week.groupby([group] + ['hour'],as_index=False)['weight'].sum()
@@ -312,6 +329,30 @@ def plt_super(data,
               save=None,
               save_kwarges={'dpi':500,'bbox_inches':'tight'},
               title=None):
+    """
+    Plot aoristic weights by hour with separate lines for each weekday.
+
+    data : pandas.DataFrame
+        DataFrame with 'weekday', 'hour', and 'weight' columns
+    color : list, default week_color
+        List of colors for each weekday line
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. If None, creates new figure.
+    figsize : tuple, default (8, 4)
+        Figure size if creating new figure
+    show : bool, default True
+        Whether to display the plot
+    legend : bool, default True
+        Whether to show legend
+    leg_kwargs : dict
+        Keyword arguments for legend
+    save : str, optional
+        File path to save the figure
+    save_kwarges : dict
+        Keyword arguments for savefig
+    title : str, optional
+        Plot title
+    """
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     for w in range(7):
@@ -337,6 +378,28 @@ def plt_basic(data,
               save=None,
               save_kwargs={'dpi':500,'bbox_inches':'tight'},
               title=None):
+    """
+    Plot aoristic weights by hour as a simple line chart.
+
+    data : pandas.DataFrame
+        DataFrame with 'hour' and 'weight' columns
+    color : str, default 'k'
+        Line color
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. If None, creates new figure.
+    figsize : tuple, default (8, 4)
+        Figure size if creating new figure
+    show : bool, default True
+        Whether to display the plot
+    label : str, optional
+        Label for legend
+    save : str, optional
+        File path to save the figure
+    save_kwargs : dict
+        Keyword arguments for savefig
+    title : str, optional
+        Plot title
+    """
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     ax.plot(data['hour'],data['weight'],marker='o',c=color,markeredgecolor='white',label=label)

@@ -160,6 +160,19 @@ def pnip(points,polys,not_in=True):
 
 # Functions for DBSCAN hotspots
 def dissolve_overlap(data, id='lab'):
+    """
+    Dissolve overlapping polygons into single geometries based on intersection.
+
+    data : geopandas.GeoDataFrame
+        GeoDataFrame with polygon geometries
+    id : str, default 'lab'
+        Column name for the new group identifier
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        GeoDataFrame with overlapping polygons dissolved together
+    """
     # via https://gis.stackexchange.com/a/271737/751
     s = data.geometry
     overlap_matrix = s.apply(lambda x: s.intersects(x)).values.astype(int)
@@ -299,6 +312,20 @@ def north_arrow(ax,
                 width=5,
                 headwidth=15,
                 fontsize=20):
+    """
+    Add a north arrow annotation to a matplotlib axes.
+
+    ax : matplotlib.axes.Axes
+        Axes to add the north arrow to
+    aspecs : list, default [0.85, 0.10, 0.07]
+        [x_position, y_position, arrow_length] in axes coordinates
+    width : int, default 5
+        Width of the arrow body
+    headwidth : int, default 15
+        Width of the arrow head
+    fontsize : int, default 20
+        Font size for the 'N' label
+    """
     x, y, arrow_length = aspecs
     ax.annotate('N', xy=(x, y), xytext=(x, y-arrow_length),
                 arrowprops=dict(facecolor='black', width=width, headwidth=headwidth),
@@ -342,6 +369,23 @@ def shapely_to_path(geom):
 
 # Just copy/paste from SVG
 def create_shapely_union(width,height,xdescent,ydescent):
+    """
+    Create a shapely union of three circles for legend hotspot icons.
+
+    width : float
+        Width of the legend icon area
+    height : float
+        Height of the legend icon area
+    xdescent : float
+        X offset for positioning
+    ydescent : float
+        Y offset for positioning
+
+    Returns
+    -------
+    shapely.geometry.Polygon or shapely.geometry.MultiPolygon
+        Union of three overlapping circles
+    """
     scale_x = width/20
     scale_y = height/20
     c1x, c1y, r1 = 6.5 * scale_x, 7 * scale_y, 5 * scale_x
@@ -488,6 +532,19 @@ handle_di = {'GeoArea': (GeoAreaLegendItem,GeoAreaHandler),
              }
 
 def map_legend(types,styles):
+    """
+    Create legend items and handlers for map visualizations.
+
+    types : list
+        List of legend item types ('GeoArea', 'HotSpot', 'GridArea')
+    styles : list
+        List of style dictionaries corresponding to each type
+
+    Returns
+    -------
+    tuple
+        (list of legend item classes, dict mapping items to handlers)
+    """
     art = []
     han_map = {}
     for t,s in zip(types,styles):
@@ -501,6 +558,33 @@ def map_legend(types,styles):
 # transparency separately for interior/exterior
 
 def geo_map(area,ax,fill,edge='k',fill_alpha=1,edge_alpha=1,edge_width=1,leg_type='GeoArea',**kwargs):
+    """
+    Plot a geographic area with separate alpha control for fill and edge.
+
+    area : geopandas.GeoDataFrame
+        GeoDataFrame to plot
+    ax : matplotlib.axes.Axes
+        Axes to plot on
+    fill : str
+        Fill color
+    edge : str, default 'k'
+        Edge color
+    fill_alpha : float, default 1
+        Alpha transparency for fill (0-1)
+    edge_alpha : float, default 1
+        Alpha transparency for edge (0-1)
+    edge_width : float, default 1
+        Line width for edge
+    leg_type : str, default 'GeoArea'
+        Legend type ('GeoArea', 'HotSpot', or 'GridArea')
+    **kwargs : dict
+        Additional arguments passed to the handler
+
+    Returns
+    -------
+    tuple
+        (legend item instance, legend handler instance)
+    """
     area.plot(ax=ax,color=colalpha(fill,fill_alpha),
               edgecolor=colalpha(edge,edge_alpha),
               linewidth=edge_width)
@@ -518,6 +602,31 @@ def geo_map(area,ax,fill,edge='k',fill_alpha=1,edge_alpha=1,edge_width=1,leg_typ
 
 # This is for a polygon area (such as a city boundary, or a choropleth map)
 def poly_svg(text="Polygon",fill="grey",fill_opacity=0.5,stroke="black",stroke_width=1,stroke_opacity=1,height=20,width=20):
+    """
+    Generate SVG markup for a polygon legend icon.
+
+    text : str, default "Polygon"
+        Label text to display next to the icon
+    fill : str, default "grey"
+        Fill color
+    fill_opacity : float, default 0.5
+        Fill opacity (0-1)
+    stroke : str, default "black"
+        Stroke/border color
+    stroke_width : int, default 1
+        Stroke width
+    stroke_opacity : float, default 1
+        Stroke opacity (0-1)
+    height : int, default 20
+        Height of SVG icon
+    width : int, default 20
+        Width of SVG icon
+
+    Returns
+    -------
+    str
+        SVG markup string
+    """
     x_pts = [3,17,17,10,3]
     y_pts = [3,3 ,10,17,17]
     x_pts = [(i/20)*width for i in x_pts]
@@ -560,6 +669,29 @@ mask3 = '''    <clipPath id="shape">
 
 # This is for blobby hotspots, forcing to be square since based on circles
 def hot_svg(text="HotSpot",fill="grey",fill_opacity=0.9,stroke="black",stroke_width=1,stroke_opacity=1,side=20):
+    """
+    Generate SVG markup for a hotspot legend icon (three overlapping circles).
+
+    text : str, default "HotSpot"
+        Label text to display next to the icon
+    fill : str, default "grey"
+        Fill color
+    fill_opacity : float, default 0.9
+        Fill opacity (0-1)
+    stroke : str, default "black"
+        Stroke/border color
+    stroke_width : int, default 1
+        Stroke width
+    stroke_opacity : float, default 1
+        Stroke opacity (0-1)
+    side : int, default 20
+        Side length of the square SVG icon
+
+    Returns
+    -------
+    str
+        SVG markup string
+    """
     c1x, c1y, r1 = (6.5/20)*side, (7/20)*side, (5/20)*side
     c2x, c2y, r2 = (14/20)*side, (7/20)*side, (5/20)*side
     c3x, c3y, r3 = (12/20)*side, (12/20)*side, (5/20)*side
@@ -590,6 +722,33 @@ def base_folium(boundary=None,
                 legend_name="City Boundary",
                 location=None,
                 show=True):
+    """
+    Create a base Folium map with optional city boundary overlay.
+
+    boundary : geopandas.GeoDataFrame, optional
+        GeoDataFrame containing boundary polygon(s) to display
+    zoom : int, default 12
+        Initial zoom level
+    weight : int, default 4
+        Line weight for boundary
+    color : str, default "black"
+        Color for boundary line
+    opacity : float, default 0.3
+        Opacity for boundary line (0-1)
+    logo : bool, default False
+        Whether to add CrimeDeCoder logo
+    legend_name : str, default "City Boundary"
+        Name for boundary in layer control
+    location : list, optional
+        [lat, lon] for map center. If None, uses boundary centroid.
+    show : bool, default True
+        Whether to show boundary by default
+
+    Returns
+    -------
+    folium.Map
+        Folium map object with base layers
+    """
     if boundary is not None:
         b2 = boundary.copy()
         b2['area'] = boundary.geometry.area
@@ -650,6 +809,34 @@ def add_hotspots(mapf,
                  tab_names = ['Crime','Count'],
                  sort_crimes=True,
                  svg_func=hot_svg):
+    """
+    Add hotspot polygons as a layer to a Folium map with popups.
+
+    mapf : folium.Map
+        Folium map to add hotspots to
+    poly_df : geopandas.GeoDataFrame
+        GeoDataFrame containing hotspot polygons
+    tab_fields : list
+        List of field names to display in popup table
+    title : str, optional
+        Field name to use as popup title
+    footer : str, optional
+        Field name to use as popup footer
+    name : str, default "Hot Spots"
+        Name for the layer in layer control
+    fill : str, default "#880808"
+        Fill color for hotspots
+    edge : str, default "#8B0000"
+        Edge color for hotspots
+    opacity : float, default 0.5
+        Fill opacity (0-1)
+    tab_names : list, default ['Crime','Count']
+        Column headers for popup table
+    sort_crimes : bool, default True
+        Whether to sort popup table by count descending
+    svg_func : callable, default hot_svg
+        Function to generate SVG legend icon
+    """
     poly2 = poly_df.to_crs('EPSG:4326')
     poly2['area'] = poly_df.geometry.area
     # I do this so smaller geometries are placed on the top
@@ -699,6 +886,25 @@ def add_hotspots(mapf,
 
 # Adding polylines
 def line_svg(text="Line",stroke="black",stroke_width=2,stroke_opacity=1,side=26):
+    """
+    Generate SVG markup for a line legend icon.
+
+    text : str, default "Line"
+        Label text to display next to the icon
+    stroke : str, default "black"
+        Line color
+    stroke_width : int, default 2
+        Line width
+    stroke_opacity : float, default 1
+        Line opacity (0-1)
+    side : int, default 26
+        Side length of the square SVG icon
+
+    Returns
+    -------
+    str
+        SVG markup string
+    """
     svg = "<span>\n"
     svg += f'<svg width="{side}" height="{side}" xmlns="http://www.w3.org/2000/svg">\n'
     svg += f'<line x1="0" y1="{side/2 - 1}" x2="{side}" y2="{side/2 - 1}"'
@@ -720,6 +926,36 @@ def add_lines(mapf,
                popup_height=100,
                width=2,
                highlight_width=5):
+    """
+    Add polyline features as a layer to a Folium map.
+
+    mapf : folium.Map
+        Folium map to add lines to
+    line_df : geopandas.GeoDataFrame
+        GeoDataFrame containing line geometries
+    html_field : str, optional
+        Field name containing HTML for popups
+    tooltip_field : str, optional
+        Field name containing text for tooltips
+    name : str, default "Lines"
+        Name for the layer in layer control
+    edge : str, default "#8B0000"
+        Line color
+    opacity : float, default 0.5
+        Line opacity (0-1)
+    svg_func : callable, default line_svg
+        Function to generate SVG legend icon
+    show : bool, default True
+        Whether to show layer by default
+    popup_width : int, default 100
+        Popup iframe width
+    popup_height : int, default 100
+        Popup iframe height
+    width : int, default 2
+        Line width
+    highlight_width : int, default 5
+        Line width on hover
+    """
     poly2 = line_df.to_crs('EPSG:4326')
     #poly2['length'] = line_df.geometry.length
     # I do this so smaller geometries are placed on the top
@@ -769,6 +1005,19 @@ def add_lines(mapf,
 # SVG via https://www.svgrepo.com/svg/302636/map-marker
 # making as tiny as possible
 def svg_marker(fill="#FF6E6E",inner="#0C0058"):
+    """
+    Generate SVG markup for a map marker icon.
+
+    fill : str, default "#FF6E6E"
+        Outer marker fill color
+    inner : str, default "#0C0058"
+        Inner circle fill color
+
+    Returns
+    -------
+    str
+        SVG markup string (single line)
+    """
     svg = f'''<svg width="26px" height="26px" viewBox="-4 0 36 36" xmlns="http://www.w3.org/2000/svg">
 <path d="M14,0 C21.732,0 28,5.641 28,12.6 C28,23.963 14,36 14,36 C14,36 0,24.064 0,12.6 C0,5.641 6.268,0 14,0 Z" id="Shape" fill="{fill}"></path>
 <circle id="Oval" fill="{inner}" fill-rule="nonzero" cx="14" cy="14" r="7">
@@ -776,6 +1025,21 @@ def svg_marker(fill="#FF6E6E",inner="#0C0058"):
     return svg.replace("\n","")
 
 def svg_markerC(fill="#FF6E6E",inner="#0C0058",div=True):
+    """
+    Generate SVG markup for a map marker icon with optional div wrapper.
+
+    fill : str, default "#FF6E6E"
+        Outer marker fill color
+    inner : str, default "#0C0058"
+        Inner circle fill color
+    div : bool, default True
+        Whether to wrap SVG in a div for proper positioning
+
+    Returns
+    -------
+    str
+        SVG markup string
+    """
     divS = '<div style="margin-left: -8px; margin-top: -19px; width: 26px; height: 26px; outline: none;">'
     svg = f'''<svg width="26px" height="26px" viewBox="-4 0 36 36" xmlns="http://www.w3.org/2000/svg">
 <path d="M14,0 C21.732,0 28,5.641 28,12.6 C28,23.963 14,36 14,36 C14,36 0,24.064 0,12.6 C0,5.641 6.268,0 14,0 Z" id="Shape" fill="{fill}"></path>
@@ -801,6 +1065,40 @@ def add_points(mapf,
                popup_height=100,
                cluster=False,
                cluster_options=None):
+    """
+    Add point markers as a layer to a Folium map.
+
+    mapf : folium.Map
+        Folium map to add points to
+    point_df : pandas.DataFrame
+        DataFrame containing point data
+    lat : str, default 'lat'
+        Column name for latitude
+    lon : str, default 'lon'
+        Column name for longitude
+    html_field : str, optional
+        Field name containing HTML for popups
+    tooltip_field : str, optional
+        Field name containing text for tooltips
+    name : str, default "Points"
+        Name for the layer in layer control
+    fill : str, default "#286090"
+        Outer marker fill color
+    inner : str, default "#9EACC5"
+        Inner circle fill color
+    svg_func : callable, default svg_markerC
+        Function to generate SVG marker icon
+    show : bool, default False
+        Whether to show layer by default
+    popup_width : int, default 100
+        Popup iframe width
+    popup_height : int, default 100
+        Popup iframe height
+    cluster : bool, default False
+        Whether to use marker clustering
+    cluster_options : dict, optional
+        Options to pass to MarkerCluster
+    """
     point2 = point_df.copy()
     # checking for missing data
     mis = point2[[lat,lon]].isna().sum(axis=1) == 0
@@ -837,6 +1135,27 @@ def add_points(mapf,
 
 
 def circle_svg(fill,fill_opacity,stroke,stroke_opacity,height=20,width=20):
+    """
+    Generate SVG markup for a circle legend icon.
+
+    fill : str
+        Fill color
+    fill_opacity : float
+        Fill opacity (0-1)
+    stroke : str
+        Stroke/border color
+    stroke_opacity : float
+        Stroke opacity (0-1)
+    height : int, default 20
+        Height of SVG icon
+    width : int, default 20
+        Width of SVG icon
+
+    Returns
+    -------
+    str
+        SVG markup string
+    """
     cir = f'<svg width="{width}px" height="{height}px" xmlns="http://www.w3.org/2000/svg">'
     cir += f'<circle r="{min(height,width)/2.5}" cx="{width/2}" cy="{height/2}" stroke="{stroke}" '
     cir += f'stroke-opacity="{stroke_opacity}" stroke-width="3" fill="{fill}" fill-opacity="{fill_opacity}" />'
@@ -864,6 +1183,44 @@ def add_circle_points(mapf,
                       popup_width=100,
                       popup_height=100,
                       circle_type="CircleMarker"):
+    """
+    Add circle markers as a layer to a Folium map.
+
+    mapf : folium.Map
+        Folium map to add circles to
+    point_df : pandas.DataFrame
+        DataFrame containing point data
+    radius : float
+        Circle radius (pixels for CircleMarker, meters for Circle)
+    lat : str, default 'lat'
+        Column name for latitude
+    lon : str, default 'lon'
+        Column name for longitude
+    html_field : str, optional
+        Field name containing HTML for popups
+    tooltip_field : str, optional
+        Field name containing text for tooltips
+    name : str, default "CirclePoints"
+        Name for the layer in layer control
+    fill : str, default "#286090"
+        Fill color (None for no fill)
+    color : str, default "#9EACC5"
+        Stroke/border color
+    fill_opacity : float, default 0.5
+        Fill opacity (0-1)
+    opacity : float, default 1.0
+        Stroke opacity (0-1)
+    svg_func : callable, default svg_markerC
+        Function to generate SVG legend icon
+    show : bool, default False
+        Whether to show layer by default
+    popup_width : int, default 100
+        Popup iframe width
+    popup_height : int, default 100
+        Popup iframe height
+    circle_type : str, default "CircleMarker"
+        "CircleMarker" (pixels) or "Circle" (meters)
+    """
     point2 = point_df.copy()
     # checking for missing data
     mis = point2[[lat,lon]].isna().sum(axis=1) == 0
@@ -910,6 +1267,19 @@ def add_circle_points(mapf,
 # eg get_map('Blues',5)
 # or get_map('viridis',4)
 def get_map(name, n):
+    """
+    Get a list of hex color codes from a matplotlib colormap.
+
+    name : str
+        Name of the colormap (e.g., 'Blues', 'viridis')
+    n : int
+        Number of colors to extract
+
+    Returns
+    -------
+    list
+        List of hex color code strings
+    """
     cmap = cm.get_cmap(name, n)
     res_hex = []
     # not sure if it matters to use 
@@ -920,11 +1290,47 @@ def get_map(name, n):
 
 # Makes a hex palette given labels
 def make_palette(labs, name):
+    """
+    Create a dictionary mapping labels to hex colors from a colormap.
+
+    labs : list
+        List of labels to map to colors
+    name : str
+        Name of the colormap (e.g., 'Blues', 'viridis')
+
+    Returns
+    -------
+    dict
+        Dictionary mapping labels to hex color codes
+    """
     hex_map = get_map(name, len(labs))
     res_map = {l:h for l,h in zip(labs,hex_map)}
     return res_map
 
 def create_cols(data,var,new_var,cuts,col='PuBu',extra=True,int_c=True):
+    """
+    Create categorical color column from continuous variable using cut points.
+
+    data : pandas.DataFrame
+        DataFrame to add the categorical column to (modified in place)
+    var : str
+        Column name of continuous variable to categorize
+    new_var : str
+        Column name for the new categorical variable
+    cuts : list
+        List of cut points for binning
+    col : str, default 'PuBu'
+        Name of colormap to use
+    extra : bool, default True
+        Whether to add an extra color at the beginning for palette generation
+    int_c : bool, default True
+        Whether to format labels as integers
+
+    Returns
+    -------
+    dict
+        Dictionary mapping category labels to hex color codes
+    """
     labs = []
     for i,c in enumerate(cuts[:-1]):
         beg, end = cuts[i],cuts[i+1]
@@ -955,6 +1361,25 @@ def create_cols(data,var,new_var,cuts,col='PuBu',extra=True,int_c=True):
 # di should have {'label':'color'}
 # and be in the order you want
 def build_svg(di,group_name,edge='#D3D3D3',fill_opacity=0.5,edge_weight=1):
+    """
+    Build SVG legend markup for choropleth maps.
+
+    di : dict
+        Dictionary mapping labels to fill colors
+    group_name : str
+        Name/title for the legend group
+    edge : str, default '#D3D3D3'
+        Edge color for legend squares
+    fill_opacity : float, default 0.5
+        Fill opacity for legend squares (0-1)
+    edge_weight : int, default 1
+        Edge width (0 for no edge)
+
+    Returns
+    -------
+    str
+        HTML/SVG markup string for the legend
+    """
     # If edge_weight is 0, do it as 0
     if edge_weight == 0:
         loc_edge = 0
@@ -972,6 +1397,23 @@ def build_svg(di,group_name,edge='#D3D3D3',fill_opacity=0.5,edge_weight=1):
 # Currying the style function
 # https://leafletjs.com/reference.html#path-option
 def style_wrap(fillColor, fillOpacity, color, weight):
+    """
+    Create a Folium style function with curried parameters.
+
+    fillColor : str
+        Fill color for the polygon
+    fillOpacity : float
+        Fill opacity (0-1)
+    color : str
+        Stroke/border color
+    weight : float
+        Stroke width
+
+    Returns
+    -------
+    callable
+        Style function suitable for folium.GeoJson
+    """
     def style_func(x):
         di = {"fillColor": fillColor,
               "fillOpacity": fillOpacity,
@@ -993,6 +1435,34 @@ def add_choro(mapf,
               edge_weight=1,
               opacity=0.65,
               tab_names = ['Field','Value']):
+    """
+    Add a choropleth layer to a Folium map.
+
+    mapf : folium.Map
+        Folium map to add choropleth to
+    poly_df : geopandas.GeoDataFrame
+        GeoDataFrame containing polygons
+    col_field : str
+        Column name containing category values for coloring
+    lab_di : dict
+        Dictionary mapping category labels to fill colors
+    tab_fields : list
+        List of field names to display in popup table
+    title : str, optional
+        Field name to use as popup title
+    footer : str, optional
+        Field name to use as popup footer
+    name : str, default "Choropleth"
+        Name for the layer in layer control
+    edge : str, default '#D3D3D3'
+        Edge color for polygons
+    edge_weight : int, default 1
+        Edge width
+    opacity : float, default 0.65
+        Fill opacity (0-1)
+    tab_names : list, default ['Field','Value']
+        Column headers for popup table
+    """
     poly2 = poly_df.to_crs('EPSG:4326')
     poly2['area'] = poly_df.geometry.area
     poly2 = poly2.sort_values(by='area',ascending=False).reset_index(drop=True)
@@ -1150,6 +1620,24 @@ th, td {
 
 def save_map(mapf,file="temp.html",add_css=table_css,add_js=logo_js_today,layer=True,geo=False,
              geo_loc='topleft'):
+    """
+    Add layer controls, custom CSS/JS, and save a Folium map to an HTML file.
+
+    mapf : folium.Map
+        Folium map to save
+    file : str, default "temp.html"
+        Output file path (HTML). If None, returns rendered HTML string.
+    add_css : str, default table_css
+        CSS string to inject into the HTML header
+    add_js : str, default logo_js_today
+        JavaScript string to inject into the HTML
+    layer : bool, default True
+        Whether to add layer control toggle
+    geo : bool, default False
+        Whether to add geocoder search control
+    geo_loc : str, default 'topleft'
+        Position for geocoder control
+    """
     # Geocoder should be added after other layers
     if geo:
         geoc = Geocoder(position=geo_loc,add_marker=True)

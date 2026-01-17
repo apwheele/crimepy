@@ -15,6 +15,19 @@ from scipy.stats import chi2_contingency, false_discovery_control
 
 
 def chi2(x,correction=True):
+    """
+    Calculate chi-square p-value for a 2x2 contingency table.
+
+    x : pandas.Series
+        Series with 4 values representing a flattened 2x2 contingency table
+    correction : bool, default True
+        Whether to apply Yates' continuity correction
+
+    Returns
+    -------
+    float
+        P-value from chi-square test
+    """
     r1 = x.values.astype(float).reshape((2,2)).T
     chi2_contingency(r1,correction=correction)
     s,p,d,e = chi2_contingency(r1,correction=correction)
