@@ -50,7 +50,6 @@ Additional examples in Notebooks and documentation (contributors welcome!)
  - nearby chains
  - SPPT crime to police activity example
  - small sample Benford/Day of week functions & example
- - full docstrings for all functions
  - tests
  - github actions for code quality and pytest
  - try patrol districting with googles ORtools, see how fast it runs
