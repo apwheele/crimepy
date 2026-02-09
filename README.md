@@ -50,7 +50,7 @@ Additional examples in Notebooks and documentation (contributors welcome!)
  - nearby chains
  - SPPT crime to police activity example
  - small sample Benford/Day of week functions & example
- - tests
+ - HDBSCAN functions
  - github actions for code quality and pytest
  - try patrol districting with googles ORtools, see how fast it runs
  - simpler tests for districting
