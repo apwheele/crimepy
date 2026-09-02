@@ -37,10 +37,17 @@ See the notebooks folder for example analyses:
  - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
  - [Drone Base Site Selection](./notebooks/DroneSites.ipynb)
  - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
+ - [Scalable SPPT by Crime Theme, Pre/Post](./notebooks/SPPT_ScaledByTheme_PrePost.ipynb)
+ - [Group-Based Trajectory Modelling (GBTM)](./notebooks/GBTMExample.ipynb)
  - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
  - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
  - [Weighted Displacement Difference to See Changes over Time](./notebooks/WDD_Examples.ipynb)
  - [Analysis of Vandalism in Dallas (generated using Claude Code + Skills)](./notebooks/VandalismAnalysis.ipynb)
+
+## Contributors
+
+ - [Andrew Wheeler (@apwheele)](https://github.com/apwheele) — creator and maintainer
+ - [agari (@routineactivity)](https://github.com/routineactivity) — scalable SPPT and GBTM functions and examples
 
 ## ToDo
 
