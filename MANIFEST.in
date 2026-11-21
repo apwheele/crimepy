@@ -1,0 +1,27 @@
+# setuptools starts from the package, tests, and project metadata, then this
+# file drops example notebooks, figures, and analysis outputs from the sdist.
+prune notebooks
+prune images
+prune .claude
+
+exclude chapel_hill_analysis.py
+exclude chapel_hill_crimes.csv
+exclude cluster_summary.csv
+exclude breakins_map.html
+exclude gem_chapel_hill.md
+exclude weekly_breakins_cdc.png
+exclude monthly_breakins_cdc.png
+exclude Claude.md
+
+# Example datasets the library does not load. Notebooks in a git checkout
+# still read these paths; they are not part of the installed package.
+exclude crimepy/bronx_data.csv
+exclude crimepy/bronx_precinct.gpkg
+exclude crimepy/bronx_uberhex.gpkg
+exclude crimepy/CDC_Logo.svg
+
+recursive-exclude crimepy/.ipynb_checkpoints *
+recursive-exclude crimepy/__pycache__ *
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *~

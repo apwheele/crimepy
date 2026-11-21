@@ -5,14 +5,12 @@ helpers
 
 from datetime import datetime
 import pyproj
-import contextily as cx
 import matplotlib
 import matplotlib.patches as patches
 from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from matplotlib.colors import colorConverter
 from matplotlib.legend_handler import HandlerBase
-from matplotlib_scalebar.scalebar import ScaleBar
 import pandas as pd
 import geopandas as gpd
 from scipy.sparse.csgraph import connected_components

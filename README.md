@@ -6,43 +6,58 @@ Andrew Wheeler
 
 [Crime De-Coder LLC](https://crimede-coder.com/)
 
-![](./images/PirateFlag.png)
+![](https://raw.githubusercontent.com/apwheele/crimepy/main/images/PirateFlag.png)
 
 ## Installation
 
-To install this package from GitHub, you can use pip:
+Requires Python 3.11 or newer.
 
 ```bash
-pip install git+https://github.com/apwheele/crimepy.git
+pip install crimepy-cdc
 ```
 
-For now, I would suggest installing editable, since it is in a very early stage. E.g.
+The PyPI project name is `crimepy-cdc`. The import name is `crimepy`:
+
+```python
+import crimepy
+```
+
+Some heavier pieces are optional extras:
+
+```bash
+pip install "crimepy-cdc[network]"    # OpenStreetMap street networks (osmnx)
+pip install "crimepy-cdc[opt]"        # patrol districting and site selection (PuLP, HiGHS, libpysal)
+pip install "crimepy-cdc[notebooks]"  # Jupyter, ipycytoscape, and contextily basemaps
+pip install "crimepy-cdc[gbtm]"       # statsmodels for Poisson-mixture GBTM
+pip install "crimepy-cdc[tableau]"    # Tableau dashboard scraping
+pip install "crimepy-cdc[all]"        # every extra above
+```
+
+Patrol-district notebooks use both `[network]` (street distances) and `[opt]` (the solver). To work from a checkout:
 
 ```bash
 git clone https://github.com/apwheele/crimepy.git
-cd ./crimepy
-pip install -e .
+cd crimepy
+pip install -e ".[all,test]"
 ```
-
-And then just periodically do a `git pull` to get the most recent version.
 
 ## Examples
 
 See the notebooks folder for example analyses:
 
- - [Aoristic analysis](./notebooks/AoristicAnalysis.ipynb)
- - [DBScan hotspots](./notebooks/DBScanHotspots.ipynb)
- - [Prioritizing Call Ins via Dominant Sets](./notebooks/DominantSetNetwork.ipynb)
- - [Time Series Charts](./notebooks/TimeSeriesCharts.ipynb)
- - [Patrol Districting with Workload Equality](./notebooks/PatrolDistricts.ipynb)
- - [Drone Base Site Selection](./notebooks/DroneSites.ipynb)
- - [SPPT Compare Pre to Post Crime](./notebooks/SPPT_Compare_PrePost.ipynb)
- - [Scalable SPPT by Crime Theme, Pre/Post](./notebooks/SPPT_ScaledByTheme_PrePost.ipynb)
- - [Group-Based Trajectory Modelling (GBTM)](./notebooks/GBTMExample.ipynb)
- - [Querying public Socrata or ESRI data](./notebooks/QueryData.ipynb)
- - [Example Interactive Maps with Folium](./notebooks/FoliumExample.ipynb)
- - [Weighted Displacement Difference to See Changes over Time](./notebooks/WDD_Examples.ipynb)
- - [Analysis of Vandalism in Dallas (generated using Claude Code + Skills)](./notebooks/VandalismAnalysis.ipynb)
+ - [Aoristic analysis](https://github.com/apwheele/crimepy/blob/main/notebooks/AoristicAnalysis.ipynb)
+ - [DBScan hotspots](https://github.com/apwheele/crimepy/blob/main/notebooks/DBScanHotspots.ipynb)
+ - [Prioritizing Call Ins via Dominant Sets](https://github.com/apwheele/crimepy/blob/main/notebooks/DominantSetNetwork.ipynb)
+ - [Time Series Charts](https://github.com/apwheele/crimepy/blob/main/notebooks/TimeSeriesCharts.ipynb)
+ - [Patrol Districting with Workload Equality](https://github.com/apwheele/crimepy/blob/main/notebooks/PatrolDistricts.ipynb)
+ - [Drone Base Site Selection](https://github.com/apwheele/crimepy/blob/main/notebooks/DroneSites.ipynb)
+ - [SPPT Compare Pre to Post Crime](https://github.com/apwheele/crimepy/blob/main/notebooks/SPPT_Compare_PrePost.ipynb)
+ - [Scalable SPPT by Crime Theme, Pre/Post](https://github.com/apwheele/crimepy/blob/main/notebooks/SPPT_ScaledByTheme_PrePost.ipynb)
+ - [Group-Based Trajectory Modelling (GBTM)](https://github.com/apwheele/crimepy/blob/main/notebooks/GBTMExample.ipynb)
+ - [Querying public Socrata or ESRI data](https://github.com/apwheele/crimepy/blob/main/notebooks/QueryData.ipynb)
+ - [Example Interactive Maps with Folium](https://github.com/apwheele/crimepy/blob/main/notebooks/FoliumExample.ipynb)
+ - [Weighted Displacement Difference to See Changes over Time](https://github.com/apwheele/crimepy/blob/main/notebooks/WDD_Examples.ipynb)
+ - [Analysis of Vandalism in Dallas (generated using Claude Code + Skills)](https://github.com/apwheele/crimepy/blob/main/notebooks/VandalismAnalysis.ipynb)
 
 ## Contributors
 
@@ -58,7 +73,7 @@ Additional examples in Notebooks and documentation (contributors welcome!)
  - SPPT crime to police activity example
  - small sample Benford/Day of week functions & example
  - HDBSCAN functions
- - github actions for code quality and pytest
+ - github actions for linting
  - try patrol districting with googles ORtools, see how fast it runs
  - simpler tests for districting
  - Folium example for lines and graduated circles

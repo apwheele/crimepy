@@ -8,7 +8,6 @@ for peer review references and web-app
 
 import networkx as nx
 import itertools
-import ipycytoscape
 
 # Function to turn dataframe into how you want it formatted
 # for adding nodes
@@ -293,6 +292,13 @@ def color_cytoscape(G,called_in,styles=call_in_style,layout='cose'):
     ipycytoscape.CytoscapeWidget
         Interactive widget for Jupyter notebooks
     """
+    try:
+        import ipycytoscape
+    except ImportError as exc:
+        raise ImportError(
+            "Interactive network widgets require ipycytoscape. "
+            "Install it with: pip install 'crimepy-cdc[notebooks]'"
+        ) from exc
     # Figure out the reached
     reached = []
     for c in called_in:

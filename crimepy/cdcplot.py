@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import imread
 from cycler import cycler
 import numpy as np
-import importlib_resources
+from importlib.resources import as_file, files
 from matplotlib import font_manager
 
 # colors via Van Gogh
@@ -126,7 +126,8 @@ andy_theme = {'font.sans-serif': [verdana_name],
 
 
 matplotlib.rcParams.update(andy_theme)
-im = imread(importlib_resources.files('crimepy').joinpath('CDCWLineRec.PNG'))
+with as_file(files("crimepy").joinpath("CDCWLineRec.PNG")) as _logo_path:
+    im = imread(_logo_path)
 
 def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     """
@@ -143,10 +144,10 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     """
     if loc is None:
         return None
-    if type(logo) == str:
-        im = image.imread(logo)
+    if isinstance(logo, str):
+        logo_image = imread(logo)
     else:
-        im = logo
+        logo_image = logo
     xrange = ax.get_xlim()
     yrange = ax.get_ylim()
     xdif = xrange[1] - xrange[0]
@@ -155,7 +156,7 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     starty = loc[1]*ydif + yrange[0]
     coords = [startx,starty,size*xdif,size*ydif]
     axin = ax.inset_axes(coords,transform=ax.transData)
-    axin.imshow(im)
+    axin.imshow(logo_image)
     axin.axis('off')
 
 

@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crimepy-cdc"
+version = "0.1.0"
+description = "Crime analysis in Python"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Andrew Wheeler", email = "andrew.wheeler@crimede-coder.com"},
+]
+keywords = [
+    "crime",
+    "crime-analysis",
+    "criminology",
+    "gis",
+    "hotspots",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "beautifulsoup4",
+    "cycler",
+    "folium",
+    "geopandas",
+    "lxml",
+    "matplotlib",
+    "networkx",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "pyproj",
+    "requests",
+    "scikit-learn",
+    "scipy>=1.11",
+    "shapely",
+]
+
+[project.optional-dependencies]
+# Street-network distances via OpenStreetMap (crimepy.pmed.get_distance).
+network = [
+    "osmnx",
+]
+# Patrol districting and site selection. highspy is the open-source HiGHS
+# solver PuLP uses; it is not imported directly.
+opt = [
+    "pulp",
+    "highspy",
+    "libpysal",
+]
+# Jupyter notebooks, interactive dominant-set graphs, and contextily basemaps.
+notebooks = [
+    "jupyter",
+    "ipycytoscape",
+    "contextily",
+]
+# Poisson-mixture group-based trajectory models (crimepy.gbtm_scale).
+gbtm = [
+    "statsmodels",
+]
+# Scraping public Tableau dashboards (used by the QueryData notebook).
+tableau = [
+    "TableauScraper",
+]
+all = [
+    "osmnx",
+    "pulp",
+    "highspy",
+    "libpysal",
+    "jupyter",
+    "ipycytoscape",
+    "contextily",
+    "statsmodels",
+    "TableauScraper",
+]
+test = [
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/apwheele/crimepy"
+Repository = "https://github.com/apwheele/crimepy"
+Issues = "https://github.com/apwheele/crimepy/issues"
+"Crime De-Coder" = "https://crimede-coder.com/"
+
+[tool.setuptools]
+packages = ["crimepy"]
+# Only the files listed under package-data are shipped besides .py modules.
+include-package-data = false
+
+[tool.setuptools.package-data]
+crimepy = [
+    "CDCWLineRec.PNG",
+    "CarrolltonGrid.csv.zip",
+    "Dallas_MainArea_Proj.zip",
+    "Edges_Gang1.csv",
+    "Nodes_Gang1.csv",
+    "dallasdata.csv.zip",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
