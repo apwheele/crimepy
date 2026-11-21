@@ -1,8 +1,13 @@
 import pandas as pd
-import importlib_resources
+from importlib.resources import as_file, files
 from .geo import convgpd
 import geopandas as gpd
 import networkx as nx
+
+
+def _resource(filename):
+    """Context manager yielding a real path to a file shipped with crimepy."""
+    return as_file(files(__package__).joinpath(filename))
 
 dallas_prj = 'EPSG:2276'
 
@@ -43,12 +48,8 @@ def load_dallas_data():
     """
     Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
     """
-    # Use importlib_resources to access the data file packaged with the library
-    data_path = importlib_resources.files('crimepy').joinpath('dallasdata.csv.zip')
-    
-    # read the zipped csv file
-    with data_path.open('rb') as f:
-        df = pd.read_csv(f, compression='zip')
+    with _resource("dallasdata.csv.zip") as data_path:
+        df = pd.read_csv(data_path, compression="zip")
     
     df['begin'] = pd.to_datetime(df['begin'])
     df['end'] = pd.to_datetime(df['end'])
@@ -67,11 +68,8 @@ def load_dallas_border():
     geopandas.GeoDataFrame
         GeoDataFrame containing the Dallas city boundary polygon
     """
-    data_path = importlib_resources.files('crimepy').joinpath('Dallas_MainArea_Proj.zip')
-
-    # read the zipped csv file
-    with data_path.open('rb') as f:
-        dall_outline = gpd.read_file(f)
+    with _resource("Dallas_MainArea_Proj.zip") as data_path:
+        dall_outline = gpd.read_file(data_path)
     return dall_outline
 
 
@@ -79,16 +77,10 @@ def load_network_data():
     """
     Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
     """
-    # Use importlib_resources to access the data file packaged with the library
-    edges_path = importlib_resources.files('crimepy').joinpath('Edges_Gang1.csv')
-    nodes_path = importlib_resources.files('crimepy').joinpath('Nodes_Gang1.csv')
-    
-    # read the csv files
-    with edges_path.open('rb') as f:
-        edges = pd.read_csv(f)
-    
-    with nodes_path.open('rb') as f:
-        nodes = pd.read_csv(f)
+    with _resource("Edges_Gang1.csv") as edges_path:
+        edges = pd.read_csv(edges_path)
+    with _resource("Nodes_Gang1.csv") as nodes_path:
+        nodes = pd.read_csv(nodes_path)
    
     G = nx.Graph()
     lv = list(nodes.set_index('Id').to_dict(orient='index').items())
@@ -101,13 +93,8 @@ def load_carrollton_data():
     """
     Loads the dallasdata.csv.zip file included with the package into a pandas DataFrame.
     """
-    # Use importlib_resources to access the data file packaged with the library
-    epsg = 'EPSG:2276'
-    data_path = importlib_resources.files('crimepy').joinpath('CarrolltonGrid.csv.zip')
-    
-    # read the zipped csv file
-    with data_path.open('rb') as f:
-        df = pd.read_csv(f, compression='zip')
+    with _resource("CarrolltonGrid.csv.zip") as data_path:
+        df = pd.read_csv(data_path, compression="zip")
     
     # Convert to geopandas
     res_geo = gpd.GeoDataFrame(df,geometry=gpd.GeoSeries.from_wkt(df['geometry']), crs='EPSG:2276')

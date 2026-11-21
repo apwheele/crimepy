@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import imread
 from cycler import cycler
 import numpy as np
-import importlib_resources
+from importlib.resources import as_file, files
 from matplotlib import font_manager
 
 # colors via Van Gogh
@@ -126,7 +126,8 @@ andy_theme = {'font.sans-serif': [verdana_name],
 
 
 matplotlib.rcParams.update(andy_theme)
-im = imread(importlib_resources.files('crimepy').joinpath('CDCWLineRec.PNG'))
+with as_file(files("crimepy").joinpath("CDCWLineRec.PNG")) as _logo_path:
+    im = imread(_logo_path)
 
 def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     """

@@ -8,7 +8,6 @@ site selection
 '''
 
 
-import pulp
 import networkx as nx
 import pandas as pd
 from datetime import datetime
@@ -19,17 +18,28 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import to_hex, to_rgb
 import geopandas as gpd
 import pandas as pd
-import osmnx as ox
 import numpy as np
 from pyproj import Transformer
 import warnings
-import libpysal as lp
 from sklearn.neighbors import KDTree
 from sklearn import linear_model
 import numpy as np
+
+from ._optional import optional_dependency
+
 warnings.filterwarnings('ignore')
 
-av_solv = pulp.listSolvers(onlyAvailable=True)
+# Imported on first use so `import crimepy.pmed` works without the extras.
+# Notebooks still read `pmed.pulp` and `pmed.av_solv`.
+pulp = optional_dependency(
+    "pulp", "opt", "Patrol districting and site selection",
+)
+ox = optional_dependency(
+    "osmnx", "network", "Street-network distances",
+)
+lp = optional_dependency(
+    "libpysal", "opt", "Area contiguity for patrol districts",
+)
 
 # Calculating network distances, help via Claude
 # need to create checkpoints and save to disk
@@ -914,3 +924,12 @@ class SiteSelection:
             plt.show()
         
         return ax
+
+
+def __getattr__(name):
+    """Lazy `av_solv` so importing this module does not require PuLP."""
+    if name == "av_solv":
+        solvers = pulp.listSolvers(onlyAvailable=True)
+        globals()["av_solv"] = solvers
+        return solvers
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

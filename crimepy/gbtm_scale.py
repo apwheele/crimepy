@@ -27,7 +27,8 @@ Two fitting methods are supported:
     is a common, more approximate substitute when a fast first pass is
     wanted, or as a sanity check against the Poisson mixture result.
 
-Dependencies: pandas, numpy, scipy, statsmodels, scikit-learn.
+Dependencies: pandas, numpy, scipy, scikit-learn. method="poisson_mixture"
+also needs statsmodels (pip install 'crimepy-cdc[gbtm]').
 """
 
 from __future__ import annotations
@@ -38,21 +39,8 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 from scipy.special import gammaln, logsumexp
-
-try:
-    import statsmodels.api as sm
-except ImportError as _e:  # pragma: no cover
-    raise ImportError(
-        "gbtmpandas requires statsmodels. Install it with pip install statsmodels."
-    ) from _e
-
-try:
-    from sklearn.cluster import KMeans
-    from sklearn.metrics import silhouette_score
-except ImportError as _e:  # pragma: no cover
-    raise ImportError(
-        "gbtmpandas requires scikit-learn. Install it with pip install scikit-learn."
-    ) from _e
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 ALLTHEMES_LABEL = "ALLTHEMES"
 
@@ -202,6 +190,13 @@ def _fit_poisson_mixture(
     Returns a dict with: loglik, bic, aic, beta (K x degree+1), pi (K,),
     resp (n_units x K posterior probabilities), t_scaled, degree, n_params.
     """
+    try:
+        import statsmodels.api as sm
+    except ImportError as exc:
+        raise ImportError(
+            "Poisson-mixture group-based trajectory models require statsmodels. "
+            "Install it with: pip install 'crimepy-cdc[gbtm]'"
+        ) from exc
     n_units, n_periods = Y.shape
     t = np.arange(n_periods, dtype=float)
     t_c = t - t.mean()
