@@ -144,10 +144,10 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     """
     if loc is None:
         return None
-    if type(logo) == str:
-        im = image.imread(logo)
+    if isinstance(logo, str):
+        logo_image = imread(logo)
     else:
-        im = logo
+        logo_image = logo
     xrange = ax.get_xlim()
     yrange = ax.get_ylim()
     xdif = xrange[1] - xrange[0]
@@ -156,7 +156,7 @@ def add_logo(ax, loc=[0.78,0.78], size=0.2, logo=im):
     starty = loc[1]*ydif + yrange[0]
     coords = [startx,starty,size*xdif,size*ydif]
     axin = ax.inset_axes(coords,transform=ax.transData)
-    axin.imshow(im)
+    axin.imshow(logo_image)
     axin.axis('off')
 
 
